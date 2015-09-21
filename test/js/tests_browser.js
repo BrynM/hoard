@@ -9,6 +9,7 @@
 
 	var $body = $('body');
 	var $readme = $('#readme');
+	var $run = $('#runtests');
 	var pass = 'pass';
 	var nameGen = [0, 0, 0, 0];
 	var nameKey = nameGen.length - 1;
@@ -80,25 +81,10 @@
 			error: err_readme,
 			success: pop_readme
 		});
-
-		init_tests(QUnit);
-
-		run_tests_hoard(QUnit, 'hoard', hoard)
-		run_tests_hoard(QUnit, 'hoardDist', hoardDist)
-		run_tests_hoard(QUnit, 'hoardMin', hoardMin)
-
-		run_tests_ü(QUnit, 'ü', ü);
-		run_tests_ü(QUnit, 'ü', ü, next_store_name());
-
-		run_tests_ü(QUnit, 'üDist', üDist);
-		run_tests_ü(QUnit, 'üDist', üDist, next_store_name());
-
-		run_tests_ü(QUnit, 'üMin', üMin);
-		run_tests_ü(QUnit, 'üMin', üMin, next_store_name());
 	}
 
 	function pop_readme (data, status, xhr) {
-		$readme.html(markdown.toHTML(data));
+		$readme.html(markdown.toHTML(data, 'Maruku'));
 	}
 
 	function run_tests_hoard (unit, prefix, hoardThing) {
@@ -151,15 +137,16 @@
 	function run_tests_ü (unit, prefix, üThing, storeName) {
 		var sName = typeof storeName === 'string' ? '"'+storeName+'"' : '';
 		var expectedStoreName = typeof storeName === 'string' ? storeName : 'main';
-		var expiredNot;
+		var expiredAt;
 		var expired;
-		var waitFor = 1;
 		var newTime;
+		var newTimeAt;
+		var waitFor = 1;
 
 		unit.module('HOARD_CHAR');
 
 		unit.test(prefix+'('+sName+')', function(assert) {
-			assert.expect(11);
+			assert.expect(15);
 
 			assert.strictEqual(
 				'HoardStore',
@@ -168,8 +155,8 @@
 			);
 			assert.strictEqual(
 				expectedStoreName,
-				üThing(storeName).hoard,
-				prefix+'('+sName+').hoard === "'+expectedStoreName+'"'
+				üThing(storeName).get_name(),
+				prefix+'('+sName+').get_name() === "'+expectedStoreName+'"'
 			);
 			assert.strictEqual(
 				'bar',
@@ -206,8 +193,8 @@
 				prefix+'('+sName+').set("funk", "bootsy", '+(waitFor * 10)+')'
 			);
 			assert.ok(
-				üThing(storeName).life('funk', waitFor) >= newTime,
-				prefix+'('+sName+').life("funk", '+waitFor+') >= '+newTime
+				üThing(storeName).expire('funk', waitFor) >= newTime,
+				prefix+'('+sName+').expire("funk", '+waitFor+') >= '+newTime
 			);
 			assert.strictEqual(
 				'bootsy',
@@ -222,12 +209,61 @@
 				);
 				expired();
 			}, (waitFor * 1000) + 5 );
+
+			expiredAt = assert.async();
+			newTimeAt = parseInt((new Date().valueOf() / 1000) + waitFor, 10);
+
+			assert.strictEqual(
+				'stimpy',
+				üThing(storeName).set('ren', 'stimpy', waitFor * 10),
+				prefix+'('+sName+').set("ren", "stimpy", '+(waitFor * 10)+')'
+			);
+			assert.strictEqual(
+				newTimeAt,
+				üThing(storeName).expire_at('ren', newTimeAt),
+				prefix+'('+sName+').expire_at("ren", '+newTimeAt+')'
+			);
+			assert.strictEqual(
+				'stimpy',
+				üThing(storeName).get('ren'),
+				'not expired at '+prefix+'('+sName+').get("ren")'
+			);
+			setTimeout(function() {
+				assert.strictEqual(
+					'undefined',
+					typeof üThing(storeName).get('ren'),
+					'expired at '+prefix+'('+sName+').get("ren")'
+				);
+				expiredAt();
+			}, (waitFor * 1000) + 5 );
+
 		});
 	}
 
 	function set_pkg(data, status, xhr) {
 		pkg = _.extend({}, data);
 		$body.trigger('hdPackage');
+	}
+
+	function start_tests (ev) {
+		ev.preventDefault();
+
+		$run.remove();
+
+		init_tests(QUnit);
+
+		run_tests_hoard(QUnit, 'hoard', hoard)
+		run_tests_hoard(QUnit, 'hoardDist', hoardDist)
+		run_tests_hoard(QUnit, 'hoardMin', hoardMin)
+
+		run_tests_ü(QUnit, 'ü', ü);
+		run_tests_ü(QUnit, 'ü', ü, next_store_name());
+
+		run_tests_ü(QUnit, 'üDist', üDist);
+		run_tests_ü(QUnit, 'üDist', üDist, next_store_name());
+
+		run_tests_ü(QUnit, 'üMin', üMin);
+		run_tests_ü(QUnit, 'üMin', üMin, next_store_name());
 	}
 
 	/* Run ********************************/
@@ -242,7 +278,11 @@
 
 	$body.on('hdPackage', pop_ui);
 
+	$run.on('click', 'button', start_tests);
+
 	QUnit.config.autostart = false;
+	//QUnit.config.hidepassed = true;
+	QUnit.config.scrolltop = false;
 
 })();
 

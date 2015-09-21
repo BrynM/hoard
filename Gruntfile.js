@@ -34,7 +34,7 @@ module.exports = function(grunt) {
 
 	/* git info ***************************/
 
-	var revision = execSync('git rev-parse HEAD', [], {
+	var revision = execSync('git rev-parse --short HEAD', [], {
 		cwd: paths.base
 	}).toString('utf8').trim();
 
@@ -54,37 +54,102 @@ module.exports = function(grunt) {
 
 	var gruntCfg = {}
 	var uglifyDefaults = {
-		mangle: {
-			except: [
-				'HoardStore',
-				'HOARD_NAME',
-				'HOARD_CHAR',
-				'HOARD_PARENT',
-				'HOARD_MAIN_OPTS',
-				'hds_del',
-				'hds_garbage',
-				'hds_get',
-				'hds_keys',
-				'hds_life',
-				'hds_options',
-				'hds_set_option',
-				'hds_set',
-				'hds_stringify',
-				'hoard_store',
-				'hoard_all_del',
-				'hoard_all_get',
-				'hoard_all_keys',
-				'hoard_all_life',
-				'hoard_all_set',
-			],
-		},
+		mangle: true,
 		compress: false,
 		preserveComments: 'none',
 		quoteStyle: 3,
 		report: 'min',
+		screwIE8: true,
 	};
 	var uglifyOptsMain;
 	var uglifyOptsMinify;
+	var uglifyDistExcept = [
+		'call_store',
+		'call_store_all',
+		'dispatchEvent',
+		'document',
+		'Event',
+		'event_bind',
+		'event_fire',
+		'exports',
+		'handle_gc_event',
+		'hdDefOpts',
+		'hdIdBase',
+		'hdIsNode',
+		'hdMainStore',
+		'hds_clear',
+		'hds_del',
+		'hds_event',
+		'hds_expire',
+		'hds_expire_at',
+		'hds_expy',
+		'hds_garbage',
+		'hds_get',
+		'hds_hoard_id',
+		'hds_hoard_name',
+		'hds_keys',
+		'hds_options',
+		'hds_sched_garbage',
+		'hds_set',
+		'hds_set_option',
+		'hds_store_id',
+		'hds_stringify',
+		'hds_to_key',
+		'hdsCacheTimes',
+		'hdsCacheVals',
+		'hdsGcRunning',
+		'hdsGcSched',
+		'hdsHoardId',
+		'hdsHoardName',
+		'hdsOpts',
+		'hdsSelf',
+		'hdsStoreId',
+		'hdsStoreIdx',
+		'hdUserStoreNames',
+		'hdUserStores',
+		'hoard_all_clear',
+		'hoard_all_del',
+		'hoard_all_expire',
+		'hoard_all_expire_at',
+		'hoard_all_get',
+		'hoard_all_keys',
+		'hoard_all_life',
+		'hoard_all_set',
+		'hoard_bind',
+		'HOARD_CHAR',
+		'HOARD_MAIN_OPTS',
+		'HOARD_NAME',
+		'HOARD_PARENT',
+		'hoard_store',
+		'hoardChar',
+		'hoardCore',
+		'hoardMainOpts',
+		'hoardName',
+		'hoardParent',
+		'HoardStore',
+		'is_bool',
+		'is_func',
+		'is_num',
+		'is_obj',
+		'is_str',
+		'merge_opts',
+		'module',
+		'stamp',
+		'window',
+	];
+	var uglifyMinExcept = [
+		'dispatchEvent',
+		'document',
+		'Event',
+		'exports',
+		'HOARD_CHAR',
+		'HOARD_MAIN_OPTS',
+		'HOARD_NAME',
+		'HOARD_PARENT',
+		'HoardStore',
+		'module',
+		'window',
+	];
 
 	/* internally scoped funcs ************/
 
@@ -104,35 +169,14 @@ module.exports = function(grunt) {
 		var txt;
 		var pre = [
 			'/*!',
+			'* '+pkg.name,
+			'* '+(typeof fileName === 'string' ? fileName+' ' : '')+'v'+pkg.version,
 		];
 
-		if (typeof fileName === 'string') {
-			pre.push('* '+fileName);
-			pre.push('*');
-		} else if (typeof fileName === 'object') {
-			for (var i in fileName) {
-				if (fileName.hasOwnProperty(i) && typeof fileName[i] === 'string') {
-					pre.push('* path '+i+': '+fileName[i]);
-				}
-			}
-			pre.push('*');
-		}
-
 		txt = [
-			'* '+pkg.name+' '+pkg.version,
-			'*',
 			'* '+pkg.description,
-			'*',
-			'* Copyright '+dateObj.getFullYear()+' '+pkg.author,
-			'* License: '+pkg.license,
-			'*',
-			'* Build:',
-			'*   '+gitUser+' on '+os.hostname(),
-			'*   '+repo,
-			'*   '+pkg.version+'-'+timestamp,
-			'*   '+branch+' '+revision,
-			'*   '+dateObj.toUTCString(),
-			'*   '+dateObj.toLocaleString(),
+			'* \u00A9 '+dateObj.getFullYear()+' '+pkg.author+' '+pkg.license,
+			'* Build: '+gitUser+' on '+os.hostname()+' '+pkg.version+'-'+timestamp+' '+branch+' '+revision+' '+dateObj.toISOString(),
 			'*/\n',
 		];
 
@@ -146,6 +190,7 @@ module.exports = function(grunt) {
 	/* copy task **************************/
 
 	gruntCfg.copy = {};
+
 	gruntCfg.copy.dev = {};
 	gruntCfg.copy.dev.files = [];
 	gruntCfg.copy.dev.files.push({
@@ -174,14 +219,44 @@ module.exports = function(grunt) {
 	/* replace task ***********************/
 
 	gruntCfg.replace = {};
+
 	gruntCfg.replace.banner = {};
 	gruntCfg.replace.banner.src = [paths.base+'src/hoard.js'];
 	gruntCfg.replace.banner.dest = paths.build+'hoard.js';
 	gruntCfg.replace.banner.replacements = [];
-	//gruntCfg.replace.banner.replacements.push({
-	//	from: /\/\*\s*build heading replaced here\s*\*\//i,
-	//	to: tpl_banner('hoard.js').trim(),
-	//});
+	gruntCfg.replace.banner.replacements.push({
+		from: /\/\*\s*build heading replaced here\s*\*\//i,
+		to: tpl_banner('hoard.js').trim(),
+	});
+
+	gruntCfg.replace.readme = {};
+	gruntCfg.replace.readme.src = [paths.base+'README.md'];
+	gruntCfg.replace.readme.dest = paths.base+'README.md';
+	gruntCfg.replace.readme.replacements = [];
+	gruntCfg.replace.readme.replacements.push({
+		from: new RegExp('\\s*\\#\\s+'+pkg.name+'(\\s+v[0-9\\.]+)?\n', 'i'),
+		to: '# '+pkg.name+' v'+pkg.version+'\n',
+	});
+	gruntCfg.replace.readme.replacements.push({
+		from: new RegExp('(\\t| )*\\* [0-9\\.]+kb minified[^\\n]*\\n', 'i'),
+		to: function () {
+			return '* '+
+				(Math.ceil((fs.statSync(paths.build+'hoard.min.js').size / 1024) * 100) / 100)+
+				'kb minified ('+
+				fs.statSync(paths.build+'hoard.min.js').size+
+				' bytes)\n';
+		},
+	});
+	gruntCfg.replace.readme.replacements.push({
+		from: new RegExp('(\\t| )*\\* [0-9\\.]+kb unminified[^\\n]*\\n', 'i'),
+		to: function () {
+			return '* '+
+				(Math.ceil((fs.statSync(paths.build+'hoard.js').size / 1024) * 100) / 100)+
+				'kb unminified ('+
+				fs.statSync(paths.build+'hoard.js').size+
+				' bytes)\n';
+		},
+	});
 
 	/* uglify task ************************/
 
@@ -189,6 +264,7 @@ module.exports = function(grunt) {
 
 	uglifyOptsMain = _.extend({banner: tpl_banner('hoard.js')}, uglifyDefaults);
 	uglifyOptsMain.beautify = true;
+	uglifyOptsMain.mangle = {except: uglifyDistExcept};
 
 	gruntCfg.uglify.main = {};
 	gruntCfg.uglify.main.options = uglifyOptsMain;
@@ -196,6 +272,7 @@ module.exports = function(grunt) {
 	gruntCfg.uglify.main.files[paths.build+'hoard.js'] = [paths.build+'hoard.js'];
 
 	uglifyOptsMinify = _.extend({banner: tpl_banner('hoard.min.js')}, uglifyDefaults);
+	uglifyOptsMinify.mangle = {except: uglifyMinExcept};
 
 	gruntCfg.uglify.minify = {};
 	gruntCfg.uglify.minify.options = uglifyOptsMinify;
@@ -205,8 +282,11 @@ module.exports = function(grunt) {
 	/* watch task *************************/
 
 	gruntCfg.watch = {};
+
 	gruntCfg.watch.dev = {};
-	gruntCfg.watch.dev.files = [paths.srcBase+'*.js'];
+	gruntCfg.watch.dev.files = [
+		paths.srcBase+'*.js',
+	];
 	gruntCfg.watch.dev.tasks = [
 		'dev',
 	];
@@ -225,15 +305,17 @@ module.exports = function(grunt) {
 
 	// Default task(s).
 	grunt.registerTask('default', [
-		'replace',
+		'replace:banner',
 		'uglify',
+		'replace:readme',
 	]);
 
 	// det task
 	// used with watch
 	grunt.registerTask('dev', [
-		'replace',
+		'replace:banner',
 		'uglify',
+		'replace:readme',
 		'copy:dev',
 	]);
 

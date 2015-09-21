@@ -1,148 +1,165 @@
 /*!
-* hoard.js
-*
-* hoard 0.0.1
-*
+* Hoard
+* hoard.js v0.0.1
 * A simple, expiring memory cache implementation for JavaScript
-*
-* Copyright 2015 Bryn Mosher (https://github.com/BrynM)
-* License: GPLv3
-*
-* Build:
-*   Bryn Mosher on myakka
-*   https://github.com/BrynM/hoard.git
-*   0.0.1-1442807934
-*   master e6d0d4b7992692217703a756e336f9f5608aa891
-*   Mon, 21 Sep 2015 03:58:54 GMT
-*   Sun Sep 20 2015 20:58:54 GMT-0700 (Pacific Daylight Time)
+* © 2015 Bryn Mosher (https://github.com/BrynM) GPLv3
+* Build: Bryn Mosher on myakka 0.0.1-1442821025 master ffe983c 2015-09-21T07:37:05.348Z
 */
 (function() {
-    var a = typeof HOARD_NAME === 'string' && HOARD_NAME.length > 0 ? HOARD_NAME : 'hoard';
-    var b = typeof HOARD_CHAR === 'string' && HOARD_CHAR.length > 0 ? HOARD_CHAR : 'ü';
-    var c = typeof HOARD_PARENT === 'object' ? HOARD_PARENT : undefined;
-    var d = typeof HOARD_MAIN_OPTS === 'object' ? HOARD_MAIN_OPTS : undefined;
-    var e = {};
-    var f = {};
-    var g = false;
-    var h;
-    var i = [];
-    var j = {};
-    var k = new Date().valueOf() / 1e3 * Math.random() * 100 * Math.random();
-    function HoardStore(a, b) {
-        var c = {};
-        var d = {};
-        var e = false;
-        var g;
-        var h = n(b);
-        var l = this;
-        var m;
-        function o(a, b) {
+    var hoardName = typeof HOARD_NAME === 'string' && HOARD_NAME.length > 0 ? HOARD_NAME : 'hoard';
+    var hoardChar = typeof HOARD_CHAR === 'string' && HOARD_CHAR.length > 0 ? HOARD_CHAR : 'ü';
+    var hoardParent = typeof HOARD_PARENT === 'object' ? HOARD_PARENT : undefined;
+    var hoardMainOpts = typeof HOARD_MAIN_OPTS === 'object' ? HOARD_MAIN_OPTS : undefined;
+    var hoardCore = {};
+    var hdDefOpts = {};
+    var hdIsNode = false;
+    var hdMainStore;
+    var hdUserStores = [];
+    var hdUserStoreNames = {};
+    var hdIdBase = new Date().valueOf() / 1e3 * Math.random() * 100 * Math.random();
+    function HoardStore(hoardName, a) {
+        var hdsCacheVals = {};
+        var hdsCacheTimes = {};
+        var hdsGcRunning = false;
+        var hdsGcSched;
+        var hdsHoardName;
+        var hdsStoreId;
+        var hdsHoardId;
+        var hdsOpts = merge_opts(a);
+        var hdsSelf = this;
+        var hdsStoreIdx;
+        function hds_event(a, b) {
             var c = {
                 cancelable: true,
                 currentTarget: this,
                 target: this
             };
-            return p(a, b, c);
+            return event_fire(a, b, c);
         }
-        function q(a) {
-            return parseInt(x() + a, 10);
+        function hds_expy(a) {
+            return parseInt(stamp() + a, 10);
         }
-        function r() {
-            if (g) {
+        function hds_sched_garbage() {
+            if (hdsGcSched) {
                 return;
             }
-            g = setTimeout(function() {
-                l.garbage();
-                g = null;
-                r();
-            }, h.gcInterval * 1e3);
+            hdsGcSched = setTimeout(function() {
+                hdsSelf.garbage();
+                hdsGcSched = null;
+                hds_sched_garbage();
+            }, hdsOpts.gcInterval * 1e3);
         }
-        function s(a) {
-            return w(a) || u(a) ? h.prefix + '' + a : false;
+        function hds_to_key(a) {
+            return is_str(a) || is_num(a) ? hdsOpts.prefix + '' + a : false;
         }
-        this.del = function hds_del(a) {
-            var b = s(a);
-            var e;
-            if (typeof c[b] !== 'undefined') {
-                c[b] = e;
-                d[b] = e;
-            }
-            return typeof d[b] === 'undefined';
+        this.clear = function hds_clear() {
+            hdsCacheVals = {};
+            hdsCacheTimes = {};
         };
-        this.life = function y(a, b) {};
-        this.garbage = function hds_garbage() {
-            var a = x;
-            var b;
-            if (e) {
+        this.del = function hds_del(a) {
+            var b = hds_to_key(a);
+            var c;
+            if (typeof hdsCacheVals[b] !== 'undefined') {
+                hdsCacheVals[b] = c;
+                hdsCacheTimes[b] = c;
+            }
+            return typeof hdsCacheTimes[b] === 'undefined';
+        };
+        this.expire = function hds_expire(a, b) {
+            var c = is_num(b) ? parseInt(b, 10) : null;
+            var d = hds_to_key(a);
+            if (!d) {
                 return;
             }
-            e = true;
-            o('hoardGcBegin', this);
-            for (b in d) {
-                if (d[b] < x) {
+            if (c === null || c < 1) {
+                return this.del(a);
+            }
+            if (typeof hdsCacheTimes[d] !== 'undefined') {
+                hdsCacheTimes[d] = hds_expy(c);
+                return hdsCacheTimes[d];
+            }
+        };
+        this.expire_at = function hds_expire_at(a, b) {
+            var c = is_num(b) ? parseInt(b, 10) : null;
+            var d = hds_to_key(a);
+            var e = stamp();
+            if (!d) {
+                return;
+            }
+            if (c === null || c <= e) {
+                return this.del(a);
+            }
+            if (typeof hdsCacheTimes[d] !== 'undefined') {
+                hdsCacheTimes[d] = c;
+                return hdsCacheTimes[d];
+            }
+        };
+        this.garbage = function hds_garbage() {
+            var a = stamp;
+            var b;
+            if (hdsGcRunning) {
+                return;
+            }
+            hdsGcRunning = true;
+            hds_event('hoardGcBegin', this);
+            for (b in hdsCacheTimes) {
+                if (hdsCacheTimes[b] < stamp) {
                     this.del(b);
                 }
             }
-            e = false;
-            o('hoardGcEnd', this);
+            hdsGcRunning = false;
+            hds_event('hoardGcEnd', this);
+            return true;
         };
         this.get = function hds_get(a) {
-            var b = s(a);
+            var b = hds_to_key(a);
             if (!b) {
                 return;
             }
-            if (typeof c[b] !== 'undefined') {
-                if (x() >= d[b]) {
+            if (typeof hdsCacheVals[b] !== 'undefined') {
+                if (stamp() >= hdsCacheTimes[b]) {
                     this.del(a);
                     return;
                 }
-                if (h.useJSON) {
-                    return JSON.parse(c[b]);
+                if (hdsOpts.useJSON) {
+                    return JSON.parse(hdsCacheVals[b]);
                 }
-                return c[b];
+                return hdsCacheVals[b];
             }
         };
         this.keys = function hds_keys() {
             var a;
             var b = [];
-            for (a in c) {
-                if (c.hasOwnProperty(a)) {
-                    if (typeof c[a] !== 'undefined') {
+            for (a in hdsCacheVals) {
+                if (hdsCacheVals.hasOwnProperty(a)) {
+                    if (typeof hdsCacheVals[a] !== 'undefined') {
                         b.push('' + a);
                     }
                 }
             }
             return b;
         };
-        this.life = function hds_life(a, b) {
-            var c = u(b) ? parseInt(b, 10) : null;
-            var e = s(a);
-            if (!e) {
-                return;
-            }
-            if (c === null || c < 1) {
-                return this.del(a);
-            }
-            if (typeof d[e] !== 'undefined') {
-                d[e] = q(c);
-                return d[e];
-            }
+        this.get_name = function hds_hoard_name() {
+            return '' + hdsHoardName;
+        };
+        this.get_store_id = function hds_store_id() {
+            return parseInt(hdsStoreId, 10);
         };
         this.options = function hds_options() {
             var a;
             var b = {};
-            for (a in h) {
-                if (h.hasOwnProperty(a)) {
-                    switch (typeof h[a]) {
+            for (a in hdsOpts) {
+                if (hdsOpts.hasOwnProperty(a)) {
+                    switch (typeof hdsOpts[a]) {
                       case 'object':
-                        if (h[a] === null) {
+                        if (hdsOpts[a] === null) {
                             b[a] = null;
                         }
                         break;
 
                       case 'number':
                       case 'string':
-                        b[a] = '' + h[a];
+                        b[a] = '' + hdsOpts[a];
                         break;
                     }
                 }
@@ -150,188 +167,200 @@
             return b;
         };
         this.set_option = function hds_set_option(a, b) {
-            if (!w(a) || !h.hasOwnProperty(a) || is_empty(b)) {
+            if (!is_str(a) || !hdsOpts.hasOwnProperty(a) || is_empty(b)) {
                 return;
             }
-            if (v(f[a]) && t(f[a].check)) {
-                h[a] = f[a].check(b, h[iter].val);
+            if (is_obj(hdDefOpts[a]) && is_func(hdDefOpts[a].check)) {
+                hdsOpts[a] = hdDefOpts[a].check(b, hdsOpts[iter].val);
                 return this.options()[a];
             }
         };
-        this.set = function hds_set(a, b, e) {
-            var f = u(e) ? parseInt(e, 10) : h.lifeDefault;
-            var g = s(a);
-            if (!g) {
+        this.set = function hds_set(a, b, c) {
+            var d = is_num(c) ? parseInt(c, 10) : hdsOpts.lifeDefault;
+            var e = hds_to_key(a);
+            if (!e) {
                 return;
             }
             if (typeof b === 'undefined') {
                 this.del(a);
             }
-            if (f > h.lifeMax) {
-                f = h.lifeMax;
+            if (d > hdsOpts.lifeMax) {
+                d = hdsOpts.lifeMax;
             }
-            c[g] = h.useJSON ? JSON.stringify(b) : b;
-            d[g] = q(f);
+            hdsCacheVals[e] = hdsOpts.useJSON ? JSON.stringify(b) : b;
+            hdsCacheTimes[e] = hds_expy(d);
             return this.get(a);
         };
+        this.get_hoard_id = function hds_hoard_id() {
+            return '' + hdsHoardId;
+        };
         this.stringify = function hds_stringify(a, b) {
-            var e = {};
-            var f;
-            for (f in c) {
-                if (f in d) {
-                    e[f] = [ JSON.parse(c[f]), d[f] ];
+            var c = {};
+            var d;
+            for (d in hdsCacheVals) {
+                if (d in hdsCacheTimes) {
+                    c[d] = [ JSON.parse(hdsCacheVals[d]), hdsCacheTimes[d] ];
                 }
             }
-            return JSON.stringify(e, a, b);
+            return JSON.stringify(c, a, b);
         };
-        m = i.push(this) - 1;
-        this.hoard = w(a) ? '' + a : '';
-        this.storeId = parseInt(m, 10);
-        this.hoardId = k + '_' + m;
-        j[this.hoard] = m;
-        r();
+        hdsStoreIdx = hdUserStores.push(this) - 1;
+        hdsHoardName = is_str(hoardName) ? '' + hoardName : '';
+        hdsStoreId = parseInt(hdsStoreIdx, 10);
+        hdsHoardId = hdIdBase + '_' + hdsStoreIdx;
+        this.hoard = '' + hdsHoardName;
+        this.storeId = parseInt(hdsStoreId, 10);
+        this.hoardId = '' + hdsHoardId;
+        hdUserStoreNames[hdsHoardName] = hdsStoreIdx;
+        hds_sched_garbage();
     }
-    function l(a, b) {
-        var c = e.store(a);
+    function call_store(a, b) {
+        var c = hoardCore.store(a);
         var d = Array.prototype.slice.call(arguments).slice(2);
-        if (c && t(c[b])) {
+        if (c && is_func(c[b])) {
             return c[b].apply(c, d);
         }
     }
-    function m(a) {
+    function call_store_all(a) {
         var b;
         var c = {};
         var d;
-        for (b in j) {
+        for (b in hdUserStoreNames) {
             d = Array.prototype.slice.call(arguments);
             d.shift();
             d.unshift(a);
             d.unshift(b);
-            c[b] = l.apply(l, d);
+            c[b] = call_store.apply(call_store, d);
         }
         return c;
     }
-    function n(a) {
+    function merge_opts(a) {
         var b;
         var c = {};
-        for (b in f) {
-            if (f.hasOwnProperty(b) && v(f[b]) && t(f[b].check)) {
-                c[b] = f[b].check(f[b].val);
+        for (b in hdDefOpts) {
+            if (hdDefOpts.hasOwnProperty(b) && is_obj(hdDefOpts[b]) && is_func(hdDefOpts[b].check)) {
+                c[b] = hdDefOpts[b].check(hdDefOpts[b].val);
             }
         }
-        if (v(a)) {
+        if (is_obj(a)) {
             for (b in c) {
-                if (f.hasOwnProperty(b)) {
-                    c[b] = f[b].check(a[b], f[b].val);
+                if (hdDefOpts.hasOwnProperty(b)) {
+                    c[b] = hdDefOpts[b].check(a[b], hdDefOpts[b].val);
                 }
             }
         }
         return c;
     }
-    function o(a, b) {
+    function event_bind(a, b) {
         return document.addEventListener(a, b);
     }
-    function p(a, b, c) {
+    function event_fire(a, b, c) {
         var d = new Event(a, c);
         d.hoardData = b;
         return document.dispatchEvent(d, b);
     }
-    function q(a) {}
-    function r(a, b) {
-        if (c) {
-            c[a] = b;
-            return c[a];
+    function handle_gc_event(a) {}
+    function hoard_bind(a, b) {
+        if (hoardParent) {
+            hoardParent[a] = b;
+            return hoardParent[a];
         }
-        if (g) {
+        if (hdIsNode) {
             module.exports[a] = b;
             return module.exports[a];
         }
-        if (v(window)) {
+        if (is_obj(window)) {
             window[a] = b;
             return window[a];
         }
     }
-    function s(a) {
+    function is_bool(a) {
         return typeof a === 'boolean';
     }
-    function t(a) {
+    function is_func(a) {
         return typeof a === 'function';
     }
-    function u(a, b) {
+    function is_num(a, b) {
         b = typeof b === 'undefined' ? true : false;
         return typeof a === 'number' && !isNaN(a) && (!b || a > 0);
     }
-    function v(a) {
+    function is_obj(a) {
         return typeof a === 'object' && a !== null;
     }
-    function w(a, b) {
+    function is_str(a, b) {
         b = typeof b === 'undefined' ? true : false;
         return typeof a === 'string' && (!b || a.length > 0);
     }
-    function x() {
+    function stamp() {
         return parseInt(new Date().valueOf() / 1e3, 10);
     }
-    e.all_del = function hoard_all_del(a) {
-        return m('del', a);
+    hoardCore.all_clear = function hoard_all_clear() {
+        return call_store_all('clear');
     };
-    e.all_get = function hoard_all_get(a) {
-        return m('get', a);
+    hoardCore.all_del = function hoard_all_del(a) {
+        return call_store_all('del', a);
     };
-    e.all_keys = function hoard_all_keys() {
-        return m('keys');
+    hoardCore.all_expire = function hoard_all_expire(a, b) {
+        return call_store_all('expire', a, b);
     };
-    e.all_life = function hoard_all_life(a, b) {
-        return m('life', a, b);
+    hoardCore.all_expire_at = function hoard_all_expire_at(a, b) {
+        return call_store_all('expire_at', a, b);
     };
-    e.all_set = function hoard_all_set(a, b, c) {
-        return m('set', a, b, c);
+    hoardCore.all_get = function hoard_all_get(a) {
+        return call_store_all('get', a);
     };
-    e.store = function hoard_store(a, b) {
-        if (!w(a)) {
-            return h;
+    hoardCore.all_keys = function hoard_all_keys() {
+        return call_store_all('keys');
+    };
+    hoardCore.all_set = function hoard_all_set(a, b, c) {
+        return call_store_all('set', a, b, c);
+    };
+    hoardCore.store = function hoard_store(a, b) {
+        if (!is_str(a)) {
+            return hdMainStore;
         }
-        if (a in j && v(i[j[a]])) {
-            return i[j[a]];
+        if (a in hdUserStoreNames && is_obj(hdUserStores[hdUserStoreNames[a]])) {
+            return hdUserStores[hdUserStoreNames[a]];
         }
         return new HoardStore(a, b);
     };
-    f.prefix = {
+    hdDefOpts.prefix = {
         val: '',
         check: function(a, b) {
-            return w(a) ? '' + a : w(b) ? b : '';
+            return is_str(a) ? '' + a : is_str(b) ? b : '';
         }
     };
-    f.lifeMax = {
+    hdDefOpts.lifeMax = {
         val: 31536e3,
         check: function(a, b) {
-            return u(a) ? parseInt(a, 10) : u(b) ? b : 0;
+            return is_num(a) ? parseInt(a, 10) : is_num(b) ? b : 0;
         }
     };
-    f.lifeDefault = {
+    hdDefOpts.lifeDefault = {
         val: 300,
         check: function(a, b) {
-            return u(a) ? parseInt(a, 10) : u(b) ? b : 0;
+            return is_num(a) ? parseInt(a, 10) : is_num(b) ? b : 0;
         }
     };
-    f.gcInterval = {
+    hdDefOpts.gcInterval = {
         val: 30,
         check: function(a, b) {
-            return u(a, true) ? parseInt(a, 10) : u(b) ? b : 0;
+            return is_num(a, true) ? parseInt(a, 10) : is_num(b) ? b : 0;
         }
     };
-    f.useJSON = {
+    hdDefOpts.useJSON = {
         val: true,
         check: function(a, b) {
-            return a ? true : s(b) ? b : true;
+            return a ? true : is_bool(b) ? b : true;
         }
     };
     try {
-        g = this.obj(process) && this.str(process.version) && this.obj(exports);
-        g = g ? process.version : false;
-    } catch (y) {
-        g = false;
+        hdIsNode = this.obj(process) && this.str(process.version) && this.obj(exports);
+        hdIsNode = hdIsNode ? process.version : false;
+    } catch (a) {
+        hdIsNode = false;
     }
-    h = new HoardStore('main', d);
-    r(a, e);
-    r(b, e.store);
+    hdMainStore = new HoardStore('main', hoardMainOpts);
+    hoard_bind(hoardName, hoardCore);
+    hoard_bind(hoardChar, hoardCore.store);
 })();

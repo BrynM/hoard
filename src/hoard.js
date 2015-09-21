@@ -35,6 +35,9 @@
 		var hdsCacheTimes = {};
 		var hdsGcRunning = false;
 		var hdsGcSched;
+		var hdsHoardName;
+		var hdsStoreId;
+		var hdsHoardId;
 		var hdsOpts = merge_opts(opts);
 		var hdsSelf = this;
 		var hdsStoreIdx;
@@ -70,6 +73,11 @@
 			return is_str(key) || is_num(key) ? hdsOpts.prefix+''+key : false;
 		}
 
+		this.clear = function hds_clear () {
+			hdsCacheVals = {};
+			hdsCacheTimes = {};
+		};
+
 		this.del = function hds_del (key) {
 			var kKey = hds_to_key(key);
 			var nil;
@@ -82,8 +90,44 @@
 			return typeof hdsCacheTimes[kKey] === 'undefined';
 		};
 
-		this.life = function hds_expire (key, seconds) {
-		}
+		this.expire = function hds_expire (key, seconds) {
+			var kLife = is_num(seconds) ? parseInt(seconds, 10) : null;
+			var kKey = hds_to_key(key);
+
+			if (!kKey) {
+				return;
+			}
+
+			if (kLife ===  null || kLife < 1) {
+				return this.del(key);
+			}
+
+			if (typeof hdsCacheTimes[kKey] !== 'undefined') {
+				hdsCacheTimes[kKey] = hds_expy(kLife);
+
+				return hdsCacheTimes[kKey];
+			}
+		};
+
+		this.expire_at = function hds_expire_at (key, epoch) {
+			var kExp = is_num(epoch) ? parseInt(epoch, 10) : null;
+			var kKey = hds_to_key(key);
+			var st = stamp();
+
+			if (!kKey) {
+				return;
+			}
+
+			if (kExp ===  null || kExp <= st) {
+				return this.del(key);
+			}
+
+			if (typeof hdsCacheTimes[kKey] !== 'undefined') {
+				hdsCacheTimes[kKey] = kExp;
+
+				return hdsCacheTimes[kKey];
+			}
+		};
 
 		this.garbage = function hds_garbage () {
 			var now = stamp;
@@ -104,6 +148,8 @@
 
 			hdsGcRunning = false;
 			hds_event('hoardGcEnd', this);
+
+			return true;
 		};
 
 		this.get = function hds_get (key) {
@@ -143,23 +189,12 @@
 			return ret;
 		};
 
-		this.life = function hds_life (key, seconds) {
-			var kLife = is_num(seconds) ? parseInt(seconds, 10) : null;
-			var kKey = hds_to_key(key);
+		this.get_name = function hds_hoard_name () {
+			return ''+hdsHoardName;
+		};
 
-			if (!kKey) {
-				return;
-			}
-
-			if (kLife ===  null || kLife < 1) {
-				return this.del(key);
-			}
-
-			if (typeof hdsCacheTimes[kKey] !== 'undefined') {
-				hdsCacheTimes[kKey] = hds_expy(kLife);
-
-				return hdsCacheTimes[kKey];
-			}
+		this.get_store_id = function hds_store_id () {
+			return parseInt(hdsStoreId, 10);
 		};
 
 		this.options = function hds_options () {
@@ -220,6 +255,10 @@
 			return this.get(key);
 		};
 
+		this.get_hoard_id = function hds_hoard_id () {
+			return ''+hdsHoardId;
+		};
+
 		this.stringify = function hds_stringify (replacer, space) {
 			var vals = {};
 			var iter;
@@ -239,11 +278,15 @@
 
 		hdsStoreIdx = hdUserStores.push(this) - 1;
 
-		this.hoard = is_str(hoardName) ? ''+hoardName : '';
-		this.storeId = parseInt(hdsStoreIdx, 10);
-		this.hoardId = hdIdBase+'_'+hdsStoreIdx;
+		hdsHoardName = is_str(hoardName) ? ''+hoardName : '';
+		hdsStoreId = parseInt(hdsStoreIdx, 10);
+		hdsHoardId = hdIdBase+'_'+hdsStoreIdx;
 
-		hdUserStoreNames[this.hoard] = hdsStoreIdx;
+		this.hoard = ''+hdsHoardName;
+		this.storeId = parseInt(hdsStoreId, 10);
+		this.hoardId = ''+hdsHoardId;
+
+		hdUserStoreNames[hdsHoardName] = hdsStoreIdx;
 
 		hds_sched_garbage();
 	}
@@ -363,8 +406,20 @@
 
 	/* Public Util Funcs ******************/
 
+	hoardCore.all_clear = function hoard_all_clear () {
+		return call_store_all('clear');
+	};
+
 	hoardCore.all_del = function hoard_all_del (key) {
 		return call_store_all('del', key);
+	};
+
+	hoardCore.all_expire = function hoard_all_expire (key, life) {
+		return call_store_all('expire', key, life);
+	};
+
+	hoardCore.all_expire_at = function hoard_all_expire_at (key, epoch) {
+		return call_store_all('expire_at', key, epoch);
 	};
 
 	hoardCore.all_get = function hoard_all_get (key) {
@@ -373,10 +428,6 @@
 
 	hoardCore.all_keys = function hoard_all_keys () {
 		return call_store_all('keys');
-	};
-
-	hoardCore.all_life = function hoard_all_life (key, life) {
-		return call_store_all('life', key, life);
 	};
 
 	hoardCore.all_set = function hoard_all_set (key, val, life) {

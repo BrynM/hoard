@@ -1,5 +1,5 @@
 {
-  "name": "hoard",
+  "name": "Hoard",
   "version": "0.0.1",
   "description": "A simple, expiring memory cache implementation for JavaScript",
   "license": "GPLv3",
@@ -13,6 +13,12 @@
     "hoard",
     "cache",
     "javascript"
+  ],
+  "files": [
+    "dist/hoard.js",
+    "dist/hoard.min.js",
+    "README.md",
+    "GPLv3.txt"
   ],
   "dependencies": {},
   "main": "hoard",
