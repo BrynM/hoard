@@ -1,6 +1,7 @@
 *.sublime-project
 *.sublime-workspace
 node_modules/*
+npm-debug.log
 test/js/builds/*
 test/js/qunit.js
 test/css/qunit.css

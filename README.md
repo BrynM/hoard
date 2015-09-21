@@ -9,8 +9,8 @@ Hoard is a simple memory based cache meant to be unsed interally by JavaScript c
 * multiple discreet cache stores
 * handy alias for getting a specific cache store to act upon
 * functionality to act upon all stores at once
-* 5.02kb minified (5131 bytes)
-* 11.6kb unminified (11869 bytes)
+* 5.01kb minified (5125 bytes)
+* 11.59kb unminified (11863 bytes)
 
 # Hoard Cache Stores
 

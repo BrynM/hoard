@@ -3,7 +3,7 @@
 * hoard.js v0.0.1
 * A simple, expiring memory cache implementation for JavaScript
 * © 2015 Bryn Mosher (https://github.com/BrynM) GPLv3
-* Build: Bryn Mosher on myakka 0.0.1-1442821025 master ffe983c 2015-09-21T07:37:05.348Z
+* Build: BrynM on myakka 0.0.1-1442821185 master bb128bc 2015-09-21T07:39:45.207Z
 */
 (function() {
     var hoardName = typeof HOARD_NAME === 'string' && HOARD_NAME.length > 0 ? HOARD_NAME : 'hoard';
