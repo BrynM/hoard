@@ -11,421 +11,327 @@
 * Build:
 *   Bryn Mosher on myakka
 *   https://github.com/BrynM/hoard.git
-*   0.0.1-1442731871
-*   master a501dd31319018376cfcffa89823fcd4863fc451
-*   Sun, 20 Sep 2015 06:51:11 GMT
-*   Sat Sep 19 2015 23:51:11 GMT-0700 (Pacific Daylight Time)
+*   0.0.1-1442807934
+*   master e6d0d4b7992692217703a756e336f9f5608aa891
+*   Mon, 21 Sep 2015 03:58:54 GMT
+*   Sun Sep 20 2015 20:58:54 GMT-0700 (Pacific Daylight Time)
 */
-(function () {
-
-	/* Vars *******************************/
-
-	// what's the name of the object bound to the "global"
-	var hoardName = typeof HOARD_NAME === 'string' && HOARD_NAME.length > 0 ? HOARD_NAME : 'hoard';
-	// ue "eooh" "lure"
-	// alt+0252
-	var hoardChar = typeof HOARD_CHAR === 'string' && HOARD_CHAR.length > 0 ? HOARD_CHAR : 'ü';
-	// are we specifying a global object?
-	var hoardParent = typeof HOARD_PARENT === 'object' ? HOARD_PARENT : undefined;
-	// are we specifying specific options for the main store?
-	var hoardMainOpts = typeof HOARD_MAIN_OPTS === 'object' ? HOARD_MAIN_OPTS : undefined;
-
-	var hoardCore = {};
-	var hdDefOpts = {};
-	var hdIsNode = false;
-	var hdMainStore;
-	var hdUserStores = [];
-	var hdUserStoreNames = {};
-	var hdIdBase = ((new Date().valueOf()/1000) * Math.random()) * 100 * Math.random();
-
-	/* Objects ****************************/
-
-	function HoardStore (hoardName, opts) {
-		var hdsCacheVals = {};
-		var hdsCacheTimes = {};
-		var hdsGcRunning = false;
-		var hdsGcSched;
-		var hdsOpts = merge_opts(opts);
-		var hdsSelf = this;
-		var hdsStoreIdx;
-
-		function hds_event (evName, data) {
-			var evOpts = {
-				cancelable: true,
-				currentTarget: this,
-				target: this,
-			};
-
-			return event_fire(evName, data, evOpts);
-		}
-
-		function sched_garbage () {
-			if (hdsGcSched) {
-				return;
-			}
-
-			hdsGcSched = setTimeout(function() {
-				hdsSelf.garbage();
-				hdsGcSched = null;
-
-				sched_garbage();
-			}, hdsOpts.gcInterval * 1000);
-		}
-
-		this.del = function hds_del (key) {
-			var nil;
-
-			if (typeof hdsCacheVals[key] !== 'undefined') {
-				hdsCacheVals[key] = nil;
-				hdsCacheTimes[key] = nil;
-			}
-
-			return typeof hdsCacheTimes[key] === 'undefined';
-		};
-
-		this.garbage = function hds_garbage () {
-			var now = stamp;
-			var iter;
-
-			if (hdsGcRunning) {
-				return;
-			}
-
-			hdsGcRunning = true;
-			hds_event('hoardGcBegin', this);
-
-			for (iter in hdsCacheTimes) {
-				if (hdsCacheTimes[iter] < stamp) {
-					this.del(iter);
-				}
-			}
-
-			hdsGcRunning = false;
-			hds_event('hoardGcEnd', this);
-		};
-
-		this.get = function hds_get (key) {
-			var kKey = to_key(key, hdsOpts.prefix);
-
-			if (!kKey) {
-				return;
-			}
-
-			if (typeof hdsCacheVals[kKey] !== 'undefined') {
-				if (stamp() > hdsCacheTimes[kKey]) {
-					this.del(kKey);
-
-					return;
-				}
-
-				if (hdsOpts.useJSON) {
-					return JSON.parse(hdsCacheVals[kKey]);
-				}
-
-				return hdsCacheVals[kKey];
-			}
-		};
-
-		this.keys = function hds_keys () {
-			var iter;
-			var ret = [];
-
-			for (iter in hdsCacheVals) {
-				if (hdsCacheVals.hasOwnProperty(iter)) {
-					ret.push(''+iter);
-				}
-			}
-
-			return ret;
-		};
-
-		this.on = function hds_on (evName, cB) {
-			return bind_event(evName, cB);
-		};
-
-		this.options = function hds_options () {
-			var iter;
-			var ret = {};
-
-			for (iter in hdsOpts) {
-				if (hdsOpts.hasOwnProperty(iter)) {
-					switch (typeof hdsOpts[iter]) {
-						case 'object':
-							if (hdsOpts[iter] === null) {
-								ret[iter] = null;
-							}
-							break;
-
-						case 'number':
-						case 'string':
-							ret[iter] = ''+hdsOpts[iter];
-							break;
-					}
-				}
-			}
-
-			return ret;
-		};
-
-		this.set_opt = function hds_set_opt (opt, val) {
-			if (!is_str(opt) || !hdsOpts.hasOwnProperty(opt) || is_empty(val)) {
-				return;
-			}
-
-			if (is_obj(hdDefOpts[opt]) && is_func(hdDefOpts[opt].check)) {
-				hdsOpts[opt] = hdDefOpts[opt].check(val, hdsOpts[iter].val);
-
-				return this.options()[opt];
-			}
-		};
-
-		this.set = function hds_set (key, val, life) {
-			var kLife = is_num(life) ? parseInt(life, 10) : hdsOpts.lifeDefault;
-			var kKey = to_key(key, hdsOpts.prefix);
-
-			if (!kKey) {
-				return;
-			}
-
-			if (typeof val === 'undefined') {
-				this.del(kKey);
-			}
-
-			if (kLife > hdsOpts.lifeMax) {
-				kLife = hdsOpts.lifeMax;
-			}
-
-			hdsCacheVals[kKey] = hdsOpts.useJSON ? JSON.stringify(val) : val;
-			hdsCacheTimes[kKey] = parseInt(stamp() + kLife, 10);
-
-			return this.get(kKey);
-		};
-
-		this.stringify = function hds_stringify (replacer, space) {
-			var vals = {};
-			var iter;
-
-			for (iter in hdsCacheVals) {
-				if (iter in hdsCacheTimes) {
-					vals[iter] = [
-						JSON.parse(hdsCacheVals[iter]),
-						hdsCacheTimes[iter]
-					];
-
-				}
-			}
-
-			return JSON.stringify(vals, replacer, space);
-		};
-
-		hdsStoreIdx = hdUserStores.push(this) - 1;
-
-		this.hoard = is_str(hoardName) ? ''+hoardName : '';
-		this.storeId = parseInt(hdsStoreIdx, 10);
-		this.hoardId = hdIdBase+'_'+hdsStoreIdx;
-
-		hdUserStoreNames[this.hoard] = hdsStoreIdx;
-
-		sched_garbage();
-	}
-
-	/* Funcs ******************************/
-
-	function call_store (sName, fName) {
-		var st = hoard.get_store(sName);
-		var args = Array.prototype.slice.call(arguments).slice(2);
-
-		if (st && is_func(st[fName])) {
-			return st[fName].apply(st, args);
-		}
-	}
-
-	function merge_opts (opts) {
-		var iter;
-		var ret = {};
-
-		for (iter in hdDefOpts) {
-			if (hdDefOpts.hasOwnProperty(iter) && is_obj(hdDefOpts[iter]) && is_func(hdDefOpts[iter].check)) {
-				ret[iter] = hdDefOpts[iter].check(hdDefOpts[iter].val);
-			}
-		}
-
-		if (is_obj(opts)) {
-			for (iter in ret) {
-				if (hdDefOpts.hasOwnProperty(iter)) {
-					ret[iter] = hdDefOpts[iter].check(opts[iter], hdDefOpts[iter].val);
-				}
-			}
-		}
-
-		return ret;
-	}
-
-	function event_bind (evName, cB) {
-		return document.addEventListener(evName, cB);
-	}
-
-	function event_fire (evName, data, opts) {
-		var ev = new Event(evName, opts);
-
-		ev.hoardData = data;
-
-		console.log('ev', [ev.type, ev.hoardData.hoard, ev])
-
-		return document.dispatchEvent(ev, data);
-	}
-
-	function handle_gc_event (ev) {
-	}
-
-	function hoard_bind(vName, thing) {
-		if (hoardParent) {
-			hoardParent[vName] = thing;
-
-			return hoardParent[vName];
-		}
-
-		if (hdIsNode) {
-			module.exports[vName] = thing;
-
-			return module.exports[vName];
-		}
-
-		if (is_obj(window)) {
-			window[vName] = thing;
-
-			return window[vName];
-		}
-	}
-
-	function is_bool (bool) {
-		return (typeof bool === 'boolean');
-	}
-
-	function is_func (func) {
-		return (typeof func === 'function');
-	}
-
-	function is_num (num, gtZero) {
-		gtZero = typeof gtZero === 'undefined' ? true : false;
-
-		return (typeof num === 'number' && !isNaN(num) && (!gtZero || num > 0));
-	}
-
-	function is_obj (obj) {
-		return (typeof obj === 'object' && obj !== null);
-	}
-
-	function is_str (str, gtZero) {
-		gtZero = typeof gtZero === 'undefined' ? true : false;
-
-		return (typeof str === 'string' && (!gtZero || str.length > 0));
-	}
-
-	function stamp () {
-		return parseInt(new Date().valueOf() / 1000, 10);
-	}
-
-	function to_key (key, prefix) {
-		return is_str(key) || !is_num(key) ? prefix+''+key : false;
-	}
-
-	/* Public Util Funcs ******************/
-
-	hoardCore.del_all = function hoard_del_all (key) {
-		var iter;
-		var ret = {};
-
-		for (iter in hdUserStoreNames) {
-			ret[iter] =  call_store(iter, 'del', key);
-		}
-
-		return ret;
-	}
-
-	hoardCore.store = function hoard_get_store (key, opts) {
-		if (!is_str(key)) {
-			return hdMainStore;
-		}
-
-		if (key in hdUserStoreNames && is_obj(hdUserStores[hdUserStoreNames[key]])) {
-			return hdUserStores[hdUserStoreNames[key]];
-		}
-
-		return new HoardStore(key, opts);
-	};
-
-	hoardCore.get_all = function hoard_get_all (key) {
-		var iter;
-		var ret = {};
-
-		for (iter in hdUserStoreNames) {
-			ret[iter] =  call_store(iter, 'get', key);
-		}
-
-		return ret;
-	}
-
-	hoardCore.set_all = function hoard_set_all (key, val, life) {
-		var iter;
-		var ret = {};
-
-		for (iter in hdUserStoreNames) {
-			ret[iter] =  call_store(iter, 'set', key, val, life);
-		}
-
-		return ret;
-	}
-
-	/* Options ****************************/
-
-	hdDefOpts.prefix = {
-		val: '',
-		check: function (v, d) {
-			return is_str(v) ? ''+v : (is_str(d) ? d : '');
-		},
-	};
-
-	hdDefOpts.lifeMax = {
-		val: 31536000, // 1 year = 31536000 secs
-		check: function (v, d) {
-			return is_num(v) ? parseInt(v, 10) : (is_num(d) ? d : 0);
-		},
-	};
-
-	hdDefOpts.lifeDefault = {
-		val: 300, // sec
-		check: function (v, d) {
-			return is_num(v) ? parseInt(v, 10) : (is_num(d) ? d : 0);
-		},
-	};
-
-	hdDefOpts.gcInterval = {
-		val: 30, // sec
-		check: function (v, d) {
-			return is_num(v, true) ? parseInt(v, 10) : (is_num(d) ? d : 0);
-		},
-	};
-
-	hdDefOpts.useJSON = {
-		val: true,
-		check: function (v, d) {
-			return v ? true : ( is_bool(d) ? d : true);
-		},
-	};
-
-	/* Run ********************************/
-
-	try {
-		hdIsNode = ( this.obj(process) && this.str(process.version) && this.obj(exports) );
-		hdIsNode = hdIsNode ? process.version : false; // two lines for readibility - convert true to version string
-	} catch (e) {
-		hdIsNode = false;
-	}
-
-	hdMainStore = new HoardStore('main', hoardMainOpts);
-
-	hoard_bind(hoardName, hoardCore);
-	hoard_bind(hoardChar, hoardCore.store);
-
+(function() {
+    var a = typeof HOARD_NAME === 'string' && HOARD_NAME.length > 0 ? HOARD_NAME : 'hoard';
+    var b = typeof HOARD_CHAR === 'string' && HOARD_CHAR.length > 0 ? HOARD_CHAR : 'ü';
+    var c = typeof HOARD_PARENT === 'object' ? HOARD_PARENT : undefined;
+    var d = typeof HOARD_MAIN_OPTS === 'object' ? HOARD_MAIN_OPTS : undefined;
+    var e = {};
+    var f = {};
+    var g = false;
+    var h;
+    var i = [];
+    var j = {};
+    var k = new Date().valueOf() / 1e3 * Math.random() * 100 * Math.random();
+    function HoardStore(a, b) {
+        var c = {};
+        var d = {};
+        var e = false;
+        var g;
+        var h = n(b);
+        var l = this;
+        var m;
+        function o(a, b) {
+            var c = {
+                cancelable: true,
+                currentTarget: this,
+                target: this
+            };
+            return p(a, b, c);
+        }
+        function q(a) {
+            return parseInt(x() + a, 10);
+        }
+        function r() {
+            if (g) {
+                return;
+            }
+            g = setTimeout(function() {
+                l.garbage();
+                g = null;
+                r();
+            }, h.gcInterval * 1e3);
+        }
+        function s(a) {
+            return w(a) || u(a) ? h.prefix + '' + a : false;
+        }
+        this.del = function hds_del(a) {
+            var b = s(a);
+            var e;
+            if (typeof c[b] !== 'undefined') {
+                c[b] = e;
+                d[b] = e;
+            }
+            return typeof d[b] === 'undefined';
+        };
+        this.life = function y(a, b) {};
+        this.garbage = function hds_garbage() {
+            var a = x;
+            var b;
+            if (e) {
+                return;
+            }
+            e = true;
+            o('hoardGcBegin', this);
+            for (b in d) {
+                if (d[b] < x) {
+                    this.del(b);
+                }
+            }
+            e = false;
+            o('hoardGcEnd', this);
+        };
+        this.get = function hds_get(a) {
+            var b = s(a);
+            if (!b) {
+                return;
+            }
+            if (typeof c[b] !== 'undefined') {
+                if (x() >= d[b]) {
+                    this.del(a);
+                    return;
+                }
+                if (h.useJSON) {
+                    return JSON.parse(c[b]);
+                }
+                return c[b];
+            }
+        };
+        this.keys = function hds_keys() {
+            var a;
+            var b = [];
+            for (a in c) {
+                if (c.hasOwnProperty(a)) {
+                    if (typeof c[a] !== 'undefined') {
+                        b.push('' + a);
+                    }
+                }
+            }
+            return b;
+        };
+        this.life = function hds_life(a, b) {
+            var c = u(b) ? parseInt(b, 10) : null;
+            var e = s(a);
+            if (!e) {
+                return;
+            }
+            if (c === null || c < 1) {
+                return this.del(a);
+            }
+            if (typeof d[e] !== 'undefined') {
+                d[e] = q(c);
+                return d[e];
+            }
+        };
+        this.options = function hds_options() {
+            var a;
+            var b = {};
+            for (a in h) {
+                if (h.hasOwnProperty(a)) {
+                    switch (typeof h[a]) {
+                      case 'object':
+                        if (h[a] === null) {
+                            b[a] = null;
+                        }
+                        break;
+
+                      case 'number':
+                      case 'string':
+                        b[a] = '' + h[a];
+                        break;
+                    }
+                }
+            }
+            return b;
+        };
+        this.set_option = function hds_set_option(a, b) {
+            if (!w(a) || !h.hasOwnProperty(a) || is_empty(b)) {
+                return;
+            }
+            if (v(f[a]) && t(f[a].check)) {
+                h[a] = f[a].check(b, h[iter].val);
+                return this.options()[a];
+            }
+        };
+        this.set = function hds_set(a, b, e) {
+            var f = u(e) ? parseInt(e, 10) : h.lifeDefault;
+            var g = s(a);
+            if (!g) {
+                return;
+            }
+            if (typeof b === 'undefined') {
+                this.del(a);
+            }
+            if (f > h.lifeMax) {
+                f = h.lifeMax;
+            }
+            c[g] = h.useJSON ? JSON.stringify(b) : b;
+            d[g] = q(f);
+            return this.get(a);
+        };
+        this.stringify = function hds_stringify(a, b) {
+            var e = {};
+            var f;
+            for (f in c) {
+                if (f in d) {
+                    e[f] = [ JSON.parse(c[f]), d[f] ];
+                }
+            }
+            return JSON.stringify(e, a, b);
+        };
+        m = i.push(this) - 1;
+        this.hoard = w(a) ? '' + a : '';
+        this.storeId = parseInt(m, 10);
+        this.hoardId = k + '_' + m;
+        j[this.hoard] = m;
+        r();
+    }
+    function l(a, b) {
+        var c = e.store(a);
+        var d = Array.prototype.slice.call(arguments).slice(2);
+        if (c && t(c[b])) {
+            return c[b].apply(c, d);
+        }
+    }
+    function m(a) {
+        var b;
+        var c = {};
+        var d;
+        for (b in j) {
+            d = Array.prototype.slice.call(arguments);
+            d.shift();
+            d.unshift(a);
+            d.unshift(b);
+            c[b] = l.apply(l, d);
+        }
+        return c;
+    }
+    function n(a) {
+        var b;
+        var c = {};
+        for (b in f) {
+            if (f.hasOwnProperty(b) && v(f[b]) && t(f[b].check)) {
+                c[b] = f[b].check(f[b].val);
+            }
+        }
+        if (v(a)) {
+            for (b in c) {
+                if (f.hasOwnProperty(b)) {
+                    c[b] = f[b].check(a[b], f[b].val);
+                }
+            }
+        }
+        return c;
+    }
+    function o(a, b) {
+        return document.addEventListener(a, b);
+    }
+    function p(a, b, c) {
+        var d = new Event(a, c);
+        d.hoardData = b;
+        return document.dispatchEvent(d, b);
+    }
+    function q(a) {}
+    function r(a, b) {
+        if (c) {
+            c[a] = b;
+            return c[a];
+        }
+        if (g) {
+            module.exports[a] = b;
+            return module.exports[a];
+        }
+        if (v(window)) {
+            window[a] = b;
+            return window[a];
+        }
+    }
+    function s(a) {
+        return typeof a === 'boolean';
+    }
+    function t(a) {
+        return typeof a === 'function';
+    }
+    function u(a, b) {
+        b = typeof b === 'undefined' ? true : false;
+        return typeof a === 'number' && !isNaN(a) && (!b || a > 0);
+    }
+    function v(a) {
+        return typeof a === 'object' && a !== null;
+    }
+    function w(a, b) {
+        b = typeof b === 'undefined' ? true : false;
+        return typeof a === 'string' && (!b || a.length > 0);
+    }
+    function x() {
+        return parseInt(new Date().valueOf() / 1e3, 10);
+    }
+    e.all_del = function hoard_all_del(a) {
+        return m('del', a);
+    };
+    e.all_get = function hoard_all_get(a) {
+        return m('get', a);
+    };
+    e.all_keys = function hoard_all_keys() {
+        return m('keys');
+    };
+    e.all_life = function hoard_all_life(a, b) {
+        return m('life', a, b);
+    };
+    e.all_set = function hoard_all_set(a, b, c) {
+        return m('set', a, b, c);
+    };
+    e.store = function hoard_store(a, b) {
+        if (!w(a)) {
+            return h;
+        }
+        if (a in j && v(i[j[a]])) {
+            return i[j[a]];
+        }
+        return new HoardStore(a, b);
+    };
+    f.prefix = {
+        val: '',
+        check: function(a, b) {
+            return w(a) ? '' + a : w(b) ? b : '';
+        }
+    };
+    f.lifeMax = {
+        val: 31536e3,
+        check: function(a, b) {
+            return u(a) ? parseInt(a, 10) : u(b) ? b : 0;
+        }
+    };
+    f.lifeDefault = {
+        val: 300,
+        check: function(a, b) {
+            return u(a) ? parseInt(a, 10) : u(b) ? b : 0;
+        }
+    };
+    f.gcInterval = {
+        val: 30,
+        check: function(a, b) {
+            return u(a, true) ? parseInt(a, 10) : u(b) ? b : 0;
+        }
+    };
+    f.useJSON = {
+        val: true,
+        check: function(a, b) {
+            return a ? true : s(b) ? b : true;
+        }
+    };
+    try {
+        g = this.obj(process) && this.str(process.version) && this.obj(exports);
+        g = g ? process.version : false;
+    } catch (y) {
+        g = false;
+    }
+    h = new HoardStore('main', d);
+    r(a, e);
+    r(b, e.store);
 })();

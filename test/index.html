@@ -4,7 +4,7 @@
 		<title>hoard browser tests</title>
 
 		<link rel="icon" href="img/hoard.ico">
-		<link rel="stylesheet" href="../node_modules/qunitjs/qunit/qunit.css">
+		<link rel="stylesheet" href="css/qunit.css">
 		<style>
 /*
 faf5d4
@@ -58,21 +58,21 @@ f8f57a
 		<script src="https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.8.3/underscore-min.js"></script>
 		<script src="https://cdnjs.cloudflare.com/ajax/libs/markdown.js/0.5.0/markdown.min.js"></script>
 
-		<script src="../node_modules/qunitjs/qunit/qunit.js"></script>
+		<script src="js/qunit.js"></script>
 
-		<script src="../src/hoard.js"></script>
-
-		<!-- script>
-			var HOARD_NAME = 'distHoard';
-			var HOARD_CHAR = 'distü';
-		</script>
-		<script src="../dist/hoard.js"></script>
+		<script src="js/builds/hoard.dev.js"></script>
 
 		<script>
-			var HOARD_NAME = 'minHoard';
-			var HOARD_CHAR = 'minü';
+			var HOARD_NAME = 'hoardDist';
+			var HOARD_CHAR = 'üDist';
 		</script>
-		<script src="../dist/hoard.min.js"></script -->
+		<script src="js/builds/hoard.js"></script>
+
+		<script>
+			var HOARD_NAME = 'hoardMin';
+			var HOARD_CHAR = 'üMin';
+		</script>
+		<script src="js/builds/hoard.min.js"></script>
 
 		<script src="js/tests_browser.js"></script>
 	</body>

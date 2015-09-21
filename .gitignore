@@ -2,4 +2,5 @@
 *.sublime-workspace
 node_modules/*
 test/js/builds/*
-test/js/qUnit.js
+test/js/qunit.js
+test/css/qunit.css

@@ -1,4 +1,11 @@
-/* build heading replaced here */
+/*
+* hoard.js
+*
+* A simple, expiring memory cache implementation for JavaScript
+*
+* Copyright 2015 Bryn Mosher (https://github.com/BrynM)
+* License: GPLv3
+*/
 (function () {
 
 	/* Vars *******************************/
@@ -42,7 +49,11 @@
 			return event_fire(evName, data, evOpts);
 		}
 
-		function sched_garbage () {
+		function hds_expy (life) {
+			return parseInt(stamp() + life, 10);
+		}
+
+		function hds_sched_garbage () {
 			if (hdsGcSched) {
 				return;
 			}
@@ -51,20 +62,28 @@
 				hdsSelf.garbage();
 				hdsGcSched = null;
 
-				sched_garbage();
+				hds_sched_garbage();
 			}, hdsOpts.gcInterval * 1000);
 		}
 
+		function hds_to_key (key) {
+			return is_str(key) || is_num(key) ? hdsOpts.prefix+''+key : false;
+		}
+
 		this.del = function hds_del (key) {
+			var kKey = hds_to_key(key);
 			var nil;
 
-			if (typeof hdsCacheVals[key] !== 'undefined') {
-				hdsCacheVals[key] = nil;
-				hdsCacheTimes[key] = nil;
+			if (typeof hdsCacheVals[kKey] !== 'undefined') {
+				hdsCacheVals[kKey] = nil;
+				hdsCacheTimes[kKey] = nil;
 			}
 
-			return typeof hdsCacheTimes[key] === 'undefined';
+			return typeof hdsCacheTimes[kKey] === 'undefined';
 		};
+
+		this.life = function hds_expire (key, seconds) {
+		}
 
 		this.garbage = function hds_garbage () {
 			var now = stamp;
@@ -88,15 +107,15 @@
 		};
 
 		this.get = function hds_get (key) {
-			var kKey = to_key(key, hdsOpts.prefix);
+			var kKey = hds_to_key(key);
 
 			if (!kKey) {
 				return;
 			}
 
 			if (typeof hdsCacheVals[kKey] !== 'undefined') {
-				if (stamp() > hdsCacheTimes[kKey]) {
-					this.del(kKey);
+				if (stamp() >= hdsCacheTimes[kKey]) {
+					this.del(key);
 
 					return;
 				}
@@ -115,15 +134,32 @@
 
 			for (iter in hdsCacheVals) {
 				if (hdsCacheVals.hasOwnProperty(iter)) {
-					ret.push(''+iter);
+					if (typeof hdsCacheVals[iter] !== 'undefined') {
+						ret.push(''+iter);
+					}
 				}
 			}
 
 			return ret;
 		};
 
-		this.on = function hds_on (evName, cB) {
-			return bind_event(evName, cB);
+		this.life = function hds_life (key, seconds) {
+			var kLife = is_num(seconds) ? parseInt(seconds, 10) : null;
+			var kKey = hds_to_key(key);
+
+			if (!kKey) {
+				return;
+			}
+
+			if (kLife ===  null || kLife < 1) {
+				return this.del(key);
+			}
+
+			if (typeof hdsCacheTimes[kKey] !== 'undefined') {
+				hdsCacheTimes[kKey] = hds_expy(kLife);
+
+				return hdsCacheTimes[kKey];
+			}
 		};
 
 		this.options = function hds_options () {
@@ -150,7 +186,7 @@
 			return ret;
 		};
 
-		this.set_opt = function hds_set_opt (opt, val) {
+		this.set_option = function hds_set_option (opt, val) {
 			if (!is_str(opt) || !hdsOpts.hasOwnProperty(opt) || is_empty(val)) {
 				return;
 			}
@@ -164,14 +200,14 @@
 
 		this.set = function hds_set (key, val, life) {
 			var kLife = is_num(life) ? parseInt(life, 10) : hdsOpts.lifeDefault;
-			var kKey = to_key(key, hdsOpts.prefix);
+			var kKey = hds_to_key(key);
 
 			if (!kKey) {
 				return;
 			}
 
 			if (typeof val === 'undefined') {
-				this.del(kKey);
+				this.del(key);
 			}
 
 			if (kLife > hdsOpts.lifeMax) {
@@ -179,9 +215,9 @@
 			}
 
 			hdsCacheVals[kKey] = hdsOpts.useJSON ? JSON.stringify(val) : val;
-			hdsCacheTimes[kKey] = parseInt(stamp() + kLife, 10);
+			hdsCacheTimes[kKey] = hds_expy(kLife);
 
-			return this.get(kKey);
+			return this.get(key);
 		};
 
 		this.stringify = function hds_stringify (replacer, space) {
@@ -209,19 +245,37 @@
 
 		hdUserStoreNames[this.hoard] = hdsStoreIdx;
 
-		sched_garbage();
+		hds_sched_garbage();
 	}
 
 	/* Funcs ******************************/
 
 	function call_store (sName, fName) {
-		var st = hoard.get_store(sName);
+		var st = hoardCore.store(sName);
 		var args = Array.prototype.slice.call(arguments).slice(2);
 
 		if (st && is_func(st[fName])) {
 			return st[fName].apply(st, args);
 		}
 	}
+
+	function call_store_all (fName) {
+		var iter;
+		var ret = {};
+		var args;
+
+		for (iter in hdUserStoreNames) {
+			args = Array.prototype.slice.call(arguments);
+
+			args.shift();
+			args.unshift(fName);
+			args.unshift(iter);
+
+			ret[iter] = call_store.apply(call_store, args);
+		}
+
+		return ret;
+	};
 
 	function merge_opts (opts) {
 		var iter;
@@ -307,24 +361,29 @@
 		return parseInt(new Date().valueOf() / 1000, 10);
 	}
 
-	function to_key (key, prefix) {
-		return is_str(key) || !is_num(key) ? prefix+''+key : false;
-	}
-
 	/* Public Util Funcs ******************/
 
-	hoardCore.del_all = function hoard_del_all (key) {
-		var iter;
-		var ret = {};
+	hoardCore.all_del = function hoard_all_del (key) {
+		return call_store_all('del', key);
+	};
 
-		for (iter in hdUserStoreNames) {
-			ret[iter] =  call_store(iter, 'del', key);
-		}
+	hoardCore.all_get = function hoard_all_get (key) {
+		return call_store_all('get', key);
+	};
 
-		return ret;
-	}
+	hoardCore.all_keys = function hoard_all_keys () {
+		return call_store_all('keys');
+	};
 
-	hoardCore.store = function hoard_get_store (key, opts) {
+	hoardCore.all_life = function hoard_all_life (key, life) {
+		return call_store_all('life', key, life);
+	};
+
+	hoardCore.all_set = function hoard_all_set (key, val, life) {
+		return call_store_all('set', key, val, life);
+	};
+
+	hoardCore.store = function hoard_store (key, opts) {
 		if (!is_str(key)) {
 			return hdMainStore;
 		}
@@ -335,28 +394,6 @@
 
 		return new HoardStore(key, opts);
 	};
-
-	hoardCore.get_all = function hoard_get_all (key) {
-		var iter;
-		var ret = {};
-
-		for (iter in hdUserStoreNames) {
-			ret[iter] =  call_store(iter, 'get', key);
-		}
-
-		return ret;
-	}
-
-	hoardCore.set_all = function hoard_set_all (key, val, life) {
-		var iter;
-		var ret = {};
-
-		for (iter in hdUserStoreNames) {
-			ret[iter] =  call_store(iter, 'set', key, val, life);
-		}
-
-		return ret;
-	}
 
 	/* Options ****************************/
 
@@ -409,3 +446,4 @@
 	hoard_bind(hoardName, hoardCore);
 	hoard_bind(hoardChar, hoardCore.store);
 })();
+

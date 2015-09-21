@@ -5,19 +5,13 @@
 	* https://qunitjs.com/
 	***************************************/
 
-	/* Hoard Vars *************************/
-	// changed later for testing dist versions
-
-	var HOARD_NAME;
-	var HOARD_CHAR;
-
 	/* Vars *******************************/
 
 	var $body = $('body');
 	var $readme = $('#readme');
 	var pass = 'pass';
-
-
+	var nameGen = [0, 0, 0, 0];
+	var nameKey = nameGen.length - 1;
 
 	var pkg;
 
@@ -29,6 +23,49 @@
 
 	function err_readme (xhr, status, err) {
 		console.log('readme err', arguments);
+	}
+
+	function init_tests(unit, data, status, xhr) {
+		if (unit && unit.config && unit.config.started < 1) {
+			return unit.start();
+		}
+	}
+
+	function next_store_name() {
+		var iter;
+		var len = nameGen.length;
+		var ret = '';
+		var wrap = false;
+
+		for (iter = 0; iter < len; iter++) {
+			nameGen[iter] = parseInt(nameGen[iter], 10);
+
+			if (nameGen[iter] > 90) {
+				nameGen[iter] = 97;
+			}
+
+			if (nameGen[iter] < 65) {
+				nameGen[iter] = 65;
+			}
+
+			if (nameGen[iter] > 122) {
+				wrap = true;
+			}
+
+			ret += String.fromCharCode(nameGen[iter]);
+		}
+
+		if (nameKey < 0) {
+			nameKey = nameGen.length - 1;
+		}
+
+		nameGen[nameKey]++;
+
+		if (wrap) {
+			nameKey--;
+		}
+
+		return ret;
 	}
 
 	function pop_ui () {
@@ -44,69 +81,153 @@
 			success: pop_readme
 		});
 
-		init_tests();
-		run_tests_page_ü();
-	}
+		init_tests(QUnit);
 
-	function set_pkg(data, status, xhr) {
-		pkg = _.extend({}, data);
-		$body.trigger('hdPackage');
-	}
+		run_tests_hoard(QUnit, 'hoard', hoard)
+		run_tests_hoard(QUnit, 'hoardDist', hoardDist)
+		run_tests_hoard(QUnit, 'hoardMin', hoardMin)
 
-	function init_tests(data, status, xhr) {
-		if (QUnit.config.started < 1) {
-			return QUnit.start();
-		}
+		run_tests_ü(QUnit, 'ü', ü);
+		run_tests_ü(QUnit, 'ü', ü, next_store_name());
+
+		run_tests_ü(QUnit, 'üDist', üDist);
+		run_tests_ü(QUnit, 'üDist', üDist, next_store_name());
+
+		run_tests_ü(QUnit, 'üMin', üMin);
+		run_tests_ü(QUnit, 'üMin', üMin, next_store_name());
 	}
 
 	function pop_readme (data, status, xhr) {
 		$readme.html(markdown.toHTML(data));
 	}
 
-	function run_tests_loaded_ü () {
+	function run_tests_hoard (unit, prefix, hoardThing) {
+		var sName = next_store_name();
+
+		unit.module('HOARD_NAME');
+
+		unit.test(prefix+'.store()', function(assert) {
+			assert.expect(8);
+
+			assert.ok(
+				hoardThing.store().constructor.name === 'HoardStore',
+				prefix+'.store() is HoardStore'
+			);
+			assert.ok(
+				hoardThing.store(sName).constructor.name === 'HoardStore',
+				prefix+'.store("'+sName+'") is HoardStore'
+			);
+
+			assert.ok(
+				typeof hoardThing.all_set('banner', 'hulk') === 'object',
+				prefix+'.all_set("banner", "hulk")'
+			);
+			assert.ok(
+				hoardThing.store().get('banner') === 'hulk',
+				prefix+'.store().get("banner") === "hulk"'
+			);
+			assert.ok(
+				hoardThing.store(sName).get('banner') === 'hulk',
+				prefix+'.store("'+sName+'").get("banner") === "hulk"'
+			);
+
+			var getRes = hoardThing.all_get('banner');
+
+			assert.ok(
+				typeof getRes === 'object',
+				prefix+'.all_get("banner") is Object'
+			);
+			assert.ok(
+				getRes['main'] === 'hulk',
+				prefix+'.all_get("banner")["main"] === "hulk"'
+			);
+			assert.ok(
+				getRes[sName] === 'hulk',
+				prefix+'.all_get("banner")["'+sName+'"] === "hulk"'
+			);
+		});
 	}
 
-	function run_tests_page_ü () {
+	function run_tests_ü (unit, prefix, üThing, storeName) {
+		var sName = typeof storeName === 'string' ? '"'+storeName+'"' : '';
+		var expectedStoreName = typeof storeName === 'string' ? storeName : 'main';
+		var expiredNot;
+		var expired;
+		var waitFor = 1;
+		var newTime;
 
-		QUnit.test('ü().constructor.name === "HoardStore"', function(assert) {
-			assert.ok(ü().constructor.name === "HoardStore", pass);
-		});
+		unit.module('HOARD_CHAR');
 
-		QUnit.test('ü().hoard === "main"', function(assert) {
-			assert.ok(ü().hoard === "main", pass);
-		});
+		unit.test(prefix+'('+sName+')', function(assert) {
+			assert.expect(11);
 
-		QUnit.test('ü().set("foo", "bar") === "bar"', function(assert) {
-			assert.ok(ü().set("foo", "bar") === "bar", pass);
-		});
+			assert.strictEqual(
+				'HoardStore',
+				üThing(storeName).constructor.name,
+				prefix+'('+sName+') is HoardStore'
+			);
+			assert.strictEqual(
+				expectedStoreName,
+				üThing(storeName).hoard,
+				prefix+'('+sName+').hoard === "'+expectedStoreName+'"'
+			);
+			assert.strictEqual(
+				'bar',
+				üThing(storeName).set('foo', 'bar'),
+				prefix+'('+sName+').set("foo", "bar")'
+			);
+			assert.strictEqual(
+				'bar',
+				üThing(storeName).get('foo'),
+				prefix+'('+sName+').get("foo")'
+			);
+			assert.notEqual(
+				-1,
+				üThing(storeName).keys().indexOf("foo"),
+				prefix+'('+sName+').keys().indexOf("foo")'
+			);
+			assert.strictEqual(
+				true,
+				üThing(storeName).del('foo'),
+				prefix+'('+sName+').del("foo")'
+			);
+			assert.strictEqual(
+				'undefined',
+				typeof üThing(storeName).get('foo'),
+				'deleted '+prefix+'('+sName+').get("foo")'
+			);
 
-		QUnit.test('ü().get("foo") === "bar"', function(assert) {
-			assert.ok(ü().get("foo") === "bar", pass);
-		});
+			expired = assert.async();
+			newTime = parseInt((new Date().valueOf() / 1000) + waitFor, 10);
 
-		QUnit.test('ü().keys()[0] === "foo"', function(assert) {
-			assert.ok(ü().keys()[0] === "foo", pass);
+			assert.strictEqual(
+				'bootsy',
+				üThing(storeName).set('funk', 'bootsy', waitFor * 10),
+				prefix+'('+sName+').set("funk", "bootsy", '+(waitFor * 10)+')'
+			);
+			assert.ok(
+				üThing(storeName).life('funk', waitFor) >= newTime,
+				prefix+'('+sName+').life("funk", '+waitFor+') >= '+newTime
+			);
+			assert.strictEqual(
+				'bootsy',
+				üThing(storeName).get('funk'),
+				'not expired '+prefix+'('+sName+').get("funk")'
+			);
+			setTimeout(function() {
+				assert.strictEqual(
+					'undefined',
+					typeof üThing(storeName).get('funk'),
+					'expired '+prefix+'('+sName+').get("funk")'
+				);
+				expired();
+			}, (waitFor * 1000) + 5 );
 		});
+	}
 
-		QUnit.test('ü("secondary").constructor.name === "HoardStore"', function(assert) {
-			assert.ok(ü("secondary").constructor.name === "HoardStore", pass);
-		});
-
-		QUnit.test('ü("secondary").hoard === "secondary"', function(assert) {
-			assert.ok(ü("secondary").hoard === "secondary", pass);
-		});
-
-		QUnit.test('ü("secondary").set("fnord", "baz") === "baz"', function(assert) {
-			assert.ok(ü("secondary").set("fnord", "baz") === "baz", pass);
-		});
-
-		QUnit.test('ü("secondary").get("fnord") === "baz"', function(assert) {
-			assert.ok(ü("secondary").get("fnord") === "baz", pass);
-		});
-
-		QUnit.test('ü("secondary").keys()[0] === "fnord"', function(assert) {
-			assert.ok(ü("secondary").keys()[0] === "fnord", pass);
-		});
+	function set_pkg(data, status, xhr) {
+		pkg = _.extend({}, data);
+		$body.trigger('hdPackage');
 	}
 
 	/* Run ********************************/
