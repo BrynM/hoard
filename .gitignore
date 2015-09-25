@@ -5,3 +5,4 @@ npm-debug.log
 test/js/builds/*
 test/js/qunit.js
 test/css/qunit.css
+test/js/qunit-assert-compare.js

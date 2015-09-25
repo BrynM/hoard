@@ -4,69 +4,24 @@
 		<title>Hoard Tests and Info</title>
 
 		<link rel="icon" href="img/hoard.ico">
+
+		<link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/themes/smoothness/jquery-ui.css">
 		<link rel="stylesheet" href="css/qunit.css">
-		<style>
-/*
-faf5d4
-fef390
-bcaa37
-98782d
-f8f57a
-232323
-*/
-		body {
-			background: #faf5d4;
-			font-size: 1em;
-		}
-
-		#hdContent #qunit #qunit-header,
-		#hdContent #qunit #qunit-header a {
-			color: #faf5d4;
-			background-color: #232323;
-
-		}
-
-		#hdContent h1 {
-			color: #faf5d4;
-			background-color: #232323;
-			padding: 0.5em 0 0.5em 1em;
-			font-size: 1.5em;
-			line-height: 1em;
-			font-weight: 400;
-			border-radius: 5px 5px 0 0;
-			margin-top: 20px !important;
-		}
-		#hdContent #readme h1 {
-			margin: 0px;
-		}
-
-		#hdContent #qunit #qunit-testrunner-toolbar {
-			color: #232323;
-			background: #faf5d4;
-		}
-		#hdContent #qunit #qunit-userAgent {
-			background-color: #98782d;
-		}
-		#hdContent #qunit #qunit-tests,
-		#hdContent #qunit #qunit-tests .pass,
-		#hdContent #qunit #qunit-testresult {
-			color: #232323;
-			background-color: #fef390;
-		}
-		#hdContent #qunit #qunit-tests #qunit-tests li a,
-		#hdContent #qunit #qunit-tests .pass .test-name,
-		#hdContent #qunit #qunit-testresult a {
-			color: #232323;
-		}
-		#hdContent #readme table tr td:first-child {
-			width: 200px;
-			font-size: 80%;
-			vertical-align: top;
-		}
-		</style>
+		<link rel="stylesheet" href="css/index.css">
 	</head>
 
 	<body>
+<div style="background-color: #FFFCE8;">FFFCE8 rgba(255, 252, 232, 1)</div>
+<div style="background-color: #FAF5D4;">FAF5D4 rgba(250, 245, 212, 1)</div>
+<div style="background-color: #FEF390;">FEF390 rgba(254, 243, 144, 1)</div>
+<div style="background-color: #E6E472;">E6E472 rgba(230, 228, 114, 1)</div>
+<div style="background-color: #BCAA37;">BCAA37 rgba(188, 170, 55, 1)</div>
+<div style="background-color: #98782D;">98782D rgba(152, 120, 45, 1)</div>
+<div style="background-color: #634D1B;">634D1B rgba(99, 77, 27, 1)</div>
+<div style="background-color: #232323;">232323 rgba(35, 35, 35, 1)</div>
+<div style="background-color: #EE5757;">EE5757 rgba(238, 87, 87, 1)</div>
+<div style="background-color: #169A15;">169A15 rgba(22, 154, 21, 1)</div>
+
 		<div id="hdContent">
 			<div id="readme">
 			</div>
@@ -81,10 +36,13 @@ f8f57a
 		</div>
 
 		<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.4/jquery.min.js"></script>
+		<script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/jquery-ui.min.js"></script>
 		<script src="https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.8.3/underscore-min.js"></script>
 		<script src="https://cdnjs.cloudflare.com/ajax/libs/markdown.js/0.5.0/markdown.min.js"></script>
 
 		<script src="js/qunit.js"></script>
+		<script src="js/qunit-assert-compare.js"></script>
+		<script src="js/lz-string.min.js"></script>
 
 		<script src="js/builds/hoard.dev.js"></script>
 

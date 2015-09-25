@@ -165,7 +165,7 @@ module.exports = function(grunt) {
 		}
 	}
 
-	function tpl_banner(fileName) {
+	function tpl_banner(fileName, copyR) {
 		var txt;
 		var pre = [
 			'/*!',
@@ -181,6 +181,19 @@ module.exports = function(grunt) {
 		];
 
 		return pre.join('\n')+'\n'+txt.join('\n');
+	}
+
+	function tpl_lz_string () {
+		return [
+			'/*!',
+			'* lz-string',
+			'* \u00A9 pieroxy',
+			'* WTFPL – Do What the Fuck You Want to Public License',
+			'* http://pieroxy.net/blog/pages/lz-string/index.html',
+			'* https://github.com/pieroxy/lz-string',
+			'* lz-string.min.js',
+			'*/\n',
+		].join('\n');
 	}
 
 	/* project configuration **************/
@@ -215,6 +228,17 @@ module.exports = function(grunt) {
 		src: 'node_modules/qunitjs/qunit/qunit.css',
 		dest: paths.testBase+'css/qunit.css',
 	});
+	gruntCfg.copy.dev.files.push({
+		expand: false,
+		src: 'node_modules/qunit-assert-compare/qunit-assert-compare.js',
+		dest: paths.testBase+'js/qunit-assert-compare.js',
+	});
+	gruntCfg.copy.dev.files.push({
+		expand: false,
+		src: 'node_modules/lz-string/libs/lz-string.min.js',
+		dest: paths.testBase+'js/lz-string.min.js',
+	});
+
 
 	/* replace task ***********************/
 
@@ -238,21 +262,21 @@ module.exports = function(grunt) {
 		to: '# '+pkg.name+' v'+pkg.version+'\n',
 	});
 	gruntCfg.replace.readme.replacements.push({
-		from: new RegExp('(\\t| )*\\* [0-9\\.]+kb minified[^\\n]*\\n', 'i'),
+		from: new RegExp('(\\t| )*\\* [0-9\\.]+ ?kb minified[^\\n]*\\n', 'i'),
 		to: function () {
 			return '* '+
 				(Math.ceil((fs.statSync(paths.build+'hoard.min.js').size / 1024) * 100) / 100)+
-				'kb minified ('+
+				' kb minified ('+
 				fs.statSync(paths.build+'hoard.min.js').size+
 				' bytes)\n';
 		},
 	});
 	gruntCfg.replace.readme.replacements.push({
-		from: new RegExp('(\\t| )*\\* [0-9\\.]+kb unminified[^\\n]*\\n', 'i'),
+		from: new RegExp('(\\t| )*\\* [0-9\\.]+ ?kb unminified[^\\n]*\\n', 'i'),
 		to: function () {
 			return '* '+
 				(Math.ceil((fs.statSync(paths.build+'hoard.js').size / 1024) * 100) / 100)+
-				'kb unminified ('+
+				' kb unminified ('+
 				fs.statSync(paths.build+'hoard.js').size+
 				' bytes)\n';
 		},

@@ -10,9 +10,12 @@
 	var $body = $('body');
 	var $readme = $('#readme');
 	var $run = $('#runtests');
+	var $qunit = $('#qunit');
 	var pass = 'pass';
-	var nameGen = [0, 0, 0, 0];
-	var nameKey = nameGen.length - 1;
+	var nameGen = '000000';
+	var perfGen = '0000000000000000000000000000000000000000';
+	var genSets = [[48, 57], [65, 90], [97, 122]]; // in ascending order
+	var getGotten = {};
 
 	var pkg;
 
@@ -26,47 +29,85 @@
 		console.log('readme err', arguments);
 	}
 
+	function get_get () {
+		var gt = (''+document.location.search).replace(/^\?/, '').split('&');
+		var st = {};
+		var iter;
+		var cut;
+
+		if (gt < 2) {
+			return;
+		}
+
+		for (iter = 0; iter < gt.length; iter++) {
+			if (gt[iter].indexOf('=') < 0) {
+				st[gt[iter]] = '';
+
+				continue;
+			}
+
+			cut = gt[iter].split('=');
+			st[cut[0]] = cut[1];
+		}
+
+		getGotten = st;
+
+		return getGotten;
+	}
+
 	function init_tests(unit, data, status, xhr) {
-		if (unit && unit.config && unit.config.started < 1) {
+		if (unit && unit.config && !(typeof unit.config.started === 'number' && unit.config.started > 0)) {
 			return unit.start();
 		}
 	}
 
-	function next_store_name() {
-		var iter;
-		var len = nameGen.length;
-		var ret = '';
+	function name_inc (str, sPos) {
 		var wrap = false;
+		var mix = _.isString(str) ? str.split('') : nameGen.split('');
+		var pos = _.isNumber(sPos) ? parseInt(sPos, 10) : 0;
+		var cc;
 
-		for (iter = 0; iter < len; iter++) {
-			nameGen[iter] = parseInt(nameGen[iter], 10);
-
-			if (nameGen[iter] > 90) {
-				nameGen[iter] = 97;
-			}
-
-			if (nameGen[iter] < 65) {
-				nameGen[iter] = 65;
-			}
-
-			if (nameGen[iter] > 122) {
-				wrap = true;
-			}
-
-			ret += String.fromCharCode(nameGen[iter]);
+		if (!mix) {
+			return ''+(new Date().valueOf());
 		}
 
-		if (nameKey < 0) {
-			nameKey = nameGen.length - 1;
+		cc = mix[mix.length - pos - 1].charCodeAt(0) + 1;
+
+		if (cc < genSets[0][0]) {
+			cc = genSets[0][0];
 		}
 
-		nameGen[nameKey]++;
-
-		if (wrap) {
-			nameKey--;
+		if (cc > genSets[0][1]) {
+			if (cc < genSets[1][0]) {
+				cc = genSets[1][0];
+			}
+			if (cc > genSets[1][1]) {
+				if (cc < genSets[2][0]) {
+					cc = genSets[2][0];
+				}
+				if (cc > genSets[2][1]) {
+					wrap = true;
+					cc = genSets[0][0];
+				}
+			}
 		}
 
-		return ret;
+		mix[mix.length - pos - 1] = String.fromCharCode(cc);
+		str = wrap ? name_inc(mix.join(''), pos + 1) : mix.join('');
+
+		return str;
+	}
+
+	function next_store_name() {
+		nameGen = name_inc(nameGen);
+
+		return nameGen;
+	}
+
+	function next_perf_name() {
+		perfGen = name_inc(perfGen);
+
+		return perfGen;
 	}
 
 	function pop_ui () {
@@ -89,200 +130,427 @@
 
 	function run_tests_hoard (unit, prefix, hoardThing) {
 		var sName = next_store_name();
+		var sNameClear = next_store_name();
+		var getAllKey = next_store_name();
+		var getAllVal = next_store_name();
+		var setAllKey = next_store_name();
+		var setAllVal = next_store_name();
 
-		unit.module('HOARD_NAME');
+		unit.module('HOARD_NAME '+prefix);
 
-		unit.test(prefix+'.store()', function(assert) {
-			assert.expect(8);
+		unit.test('get main store and get store "'+sName+'"', function(assert) {
+			assert.expect(2);
 
-			assert.ok(
-				hoardThing.store().constructor.name === 'HoardStore',
+			assert.strictEqual(
+				hoardThing.store().constructor.name,
+				'HoardStore',
 				prefix+'.store() is HoardStore'
 			);
-			assert.ok(
-				hoardThing.store(sName).constructor.name === 'HoardStore',
+			assert.strictEqual(
+				hoardThing.store(sName).constructor.name,
+				'HoardStore',
+				prefix+'.store("'+sName+'") is HoardStore'
+			);
+		});
+
+		unit.test('set all "'+setAllKey+'" to "'+setAllVal+'"', function(assert) {
+			assert.expect(5);
+
+			assert.strictEqual(
+				hoardThing.store().constructor.name,
+				'HoardStore',
+				prefix+'.store() is HoardStore'
+			);
+			assert.strictEqual(
+				hoardThing.store(sName).constructor.name,
+				'HoardStore',
 				prefix+'.store("'+sName+'") is HoardStore'
 			);
 
-			assert.ok(
-				typeof hoardThing.all_set('banner', 'hulk') === 'object',
-				prefix+'.all_set("banner", "hulk")'
+			assert.strictEqual(
+				typeof hoardThing.all_set(setAllKey, setAllVal),
+				'object',
+				prefix+'.all_set("'+setAllKey+'", "'+setAllVal+'")'
 			);
-			assert.ok(
-				hoardThing.store().get('banner') === 'hulk',
-				prefix+'.store().get("banner") === "hulk"'
+			assert.strictEqual(
+				hoardThing.store().get(setAllKey),
+				setAllVal,
+				prefix+'.store().get("'+setAllKey+'") === "'+setAllVal+'"'
 			);
-			assert.ok(
-				hoardThing.store(sName).get('banner') === 'hulk',
-				prefix+'.store("'+sName+'").get("banner") === "hulk"'
+			assert.strictEqual(
+				hoardThing.store(sName).get(setAllKey),
+				setAllVal,
+				prefix+'.store("'+sName+'").get("'+setAllKey+'") === "'+setAllVal+'"'
 			);
 
-			var getRes = hoardThing.all_get('banner');
+		});
 
-			assert.ok(
-				typeof getRes === 'object',
-				prefix+'.all_get("banner") is Object'
+		unit.test('get all "'+getAllKey+'"', function(assert) {
+			var getRes;
+
+			assert.expect(6);
+
+			assert.strictEqual(
+				hoardThing.store().constructor.name,
+				'HoardStore',
+				prefix+'.store() is HoardStore'
 			);
-			assert.ok(
-				getRes['main'] === 'hulk',
-				prefix+'.all_get("banner")["main"] === "hulk"'
+			assert.strictEqual(
+				hoardThing.store(sName).constructor.name,
+				'HoardStore',
+				prefix+'.store("'+sName+'") is HoardStore'
 			);
-			assert.ok(
-				getRes[sName] === 'hulk',
-				prefix+'.all_get("banner")["'+sName+'"] === "hulk"'
+
+			assert.strictEqual(
+				typeof hoardThing.all_set(getAllKey, getAllVal),
+				'object',
+				prefix+'.all_set("'+getAllKey+'", "'+getAllVal+'")'
+			);
+
+			getRes = hoardThing.all_get(getAllKey);
+
+			assert.strictEqual(
+				typeof getRes,
+				'object',
+				prefix+'.all_get("'+getAllKey+'") is Object'
+			);
+			assert.strictEqual(
+				getRes['main'],
+				getAllVal,
+				prefix+'.all_get("'+getAllKey+'")["main"] === "'+getAllVal+'"'
+			);
+			assert.strictEqual(
+				getRes[sName],
+				getAllVal,
+				prefix+'.all_get("'+getAllKey+'")["'+sName+'"] === "'+getAllVal+'"'
 			);
 		});
 	}
 
-	function run_tests_ü (unit, prefix, üThing, storeName) {
+	function run_tests_perf_ü (unit, prefix, üThing) {
+		run_tests_perf_ü_sequential(unit, prefix, üThing, next_store_name(), undefined, 150000);
+		run_tests_perf_ü_sequential(unit, 'lzw '+prefix, üThing, next_store_name(), {storage: 'lzw'}, 15000); // 1/10th! ouch!
+	}
+
+	function run_tests_perf_ü_sequential (unit, prefix, üThing, storeName, opts, cnt) {
 		var sName = typeof storeName === 'string' ? '"'+storeName+'"' : '';
 		var expectedStoreName = typeof storeName === 'string' ? storeName : 'main';
-		var expiredAt;
-		var expired;
-		var newTime;
-		var newTimeAt;
-		var waitFor = 1;
+		var dur = 3000;
+		var charSec;
+		var keySec;
 
-		unit.module('HOARD_CHAR');
+		unit.module('HOARD_CHAR '+prefix+'('+sName+') performance');
+	
+		unit.test('sequential set and get of '+perfGen.length+' char strings for '+(dur/1000)+' secs', function(assert) {
+			var stamp = new Date().valueOf();
+			var key, val;
+			var tot = 0;
 
-		unit.test(prefix+'('+sName+')', function(assert) {
-			assert.expect(15);
+			assert.expect(3);
 
 			assert.strictEqual(
+				üThing(storeName, opts).constructor.name,
 				'HoardStore',
-				üThing(storeName).constructor.name,
 				prefix+'('+sName+') is HoardStore'
 			);
 			assert.strictEqual(
-				expectedStoreName,
 				üThing(storeName).get_name(),
+				expectedStoreName,
 				prefix+'('+sName+').get_name() === "'+expectedStoreName+'"'
 			);
-			assert.strictEqual(
-				'bar',
-				üThing(storeName).set('foo', 'bar'),
-				prefix+'('+sName+').set("foo", "bar")'
-			);
-			assert.strictEqual(
-				'bar',
-				üThing(storeName).get('foo'),
-				prefix+'('+sName+').get("foo")'
-			);
-			assert.notEqual(
-				-1,
-				üThing(storeName).keys().indexOf("foo"),
-				prefix+'('+sName+').keys().indexOf("foo")'
-			);
-			assert.strictEqual(
-				true,
-				üThing(storeName).del('foo'),
-				prefix+'('+sName+').del("foo")'
-			);
-			assert.strictEqual(
-				'undefined',
-				typeof üThing(storeName).get('foo'),
-				'deleted '+prefix+'('+sName+').get("foo")'
-			);
 
-			expired = assert.async();
-			newTime = parseInt((new Date().valueOf() / 1000) + waitFor, 10);
+			assert.gte((
+				function() {
+					var timer = new Date().valueOf();
+					var beg, ed;
 
-			assert.strictEqual(
-				'bootsy',
-				üThing(storeName).set('funk', 'bootsy', waitFor * 10),
-				prefix+'('+sName+').set("funk", "bootsy", '+(waitFor * 10)+')'
-			);
-			assert.ok(
-				üThing(storeName).expire('funk', waitFor) >= newTime,
-				prefix+'('+sName+').expire("funk", '+waitFor+') >= '+newTime
-			);
-			assert.strictEqual(
-				'bootsy',
-				üThing(storeName).get('funk'),
-				'not expired '+prefix+'('+sName+').get("funk")'
-			);
-			setTimeout(function() {
-				assert.strictEqual(
-					'undefined',
-					typeof üThing(storeName).get('funk'),
-					'expired '+prefix+'('+sName+').get("funk")'
-				);
-				expired();
-			}, (waitFor * 1000) + 5 );
+					while (timer < (stamp + dur)) {
+						key = next_perf_name();
+						val = next_perf_name();
 
-			expiredAt = assert.async();
-			newTimeAt = parseInt((new Date().valueOf() / 1000) + waitFor, 10);
+						beg = new Date().valueOf();
 
-			assert.strictEqual(
-				'stimpy',
-				üThing(storeName).set('ren', 'stimpy', waitFor * 10),
-				prefix+'('+sName+').set("ren", "stimpy", '+(waitFor * 10)+')'
-			);
-			assert.strictEqual(
-				newTimeAt,
-				üThing(storeName).expire_at('ren', newTimeAt),
-				prefix+'('+sName+').expire_at("ren", '+newTimeAt+')'
-			);
-			assert.strictEqual(
-				'stimpy',
-				üThing(storeName).get('ren'),
-				'not expired at '+prefix+'('+sName+').get("ren")'
-			);
-			setTimeout(function() {
-				assert.strictEqual(
-					'undefined',
-					typeof üThing(storeName).get('ren'),
-					'expired at '+prefix+'('+sName+').get("ren")'
-				);
-				expiredAt();
-			}, (waitFor * 1000) + 5 );
+						üThing(storeName).set(key, val);
+						if (üThing(storeName).get(key) !== val) {
+							throw 'broken perf test';
+							break;
+						}
 
+						ed = new Date().valueOf();
+
+						timer = timer + (ed - beg);
+
+						tot++;
+					}
+
+					keySec = Math.round((tot / dur) * 100000) / 100;
+
+					return keySec;
+				})(),
+				_.isNumber(cnt) ? parseInt(cnt, 10) : 1000,
+				prefix+'('+sName+') - KEYS: '+str_num(tot)+' - PERF: '+str_num(keySec)+' keys/sec - LAST: '+key
+			);
 		});
 	}
 
-	function set_pkg(data, status, xhr) {
+	function run_tests_ü (unit, prefix, üThing, storeName, opts) {
+		var sName = typeof storeName === 'string' ? '"'+storeName+'"' : '';
+		var expectedStoreName = typeof storeName === 'string' ? storeName : 'main';
+		var waitFor = 1;
+		var nameDel = next_store_name();
+		var nameExp = next_store_name();
+		var nameExpAt = next_store_name();
+		var valDel = next_store_name();
+		var valExp = next_store_name();
+		var valExpAt = next_store_name();
+
+		unit.module('HOARD_CHAR '+prefix+'('+sName+')');
+
+		unit.test('set and delete "'+nameDel+'"', function(assert) {
+			assert.expect(7);
+
+			assert.strictEqual(
+				üThing(storeName, opts).constructor.name,
+				'HoardStore',
+				prefix+'('+sName+') is HoardStore'
+			);
+
+			assert.strictEqual(
+				üThing(storeName).get_name(),
+				expectedStoreName,
+				prefix+'('+sName+').get_name() === "'+expectedStoreName+'"'
+			);
+
+			assert.strictEqual(
+				üThing(storeName).set(nameDel, valDel),
+				valDel,
+				prefix+'('+sName+').set("'+nameDel+'", "'+valDel+'")'
+			);
+			assert.strictEqual(
+				üThing(storeName).get(nameDel),
+				valDel,
+				prefix+'('+sName+').get("'+nameDel+'")'
+			);
+			assert.gt(
+				üThing(storeName).keys().indexOf(nameDel),
+				-1,
+				prefix+'('+sName+').keys().indexOf("'+nameDel+'")'
+			);
+
+			assert.strictEqual(
+				üThing(storeName).del(nameDel),
+				true,
+				prefix+'('+sName+').del("'+nameDel+'")'
+			);
+			assert.strictEqual(
+				typeof üThing(storeName).get(nameDel),
+				'undefined',
+				'deleted '+prefix+'('+sName+').get("'+nameDel+'")'
+			);
+		});
+
+		unit.test('set and expire "'+nameExp+'"', function(assert) {
+			var expired = assert.async();
+			var newTime = parseInt((new Date().valueOf() / 1000) + waitFor, 10);
+
+			assert.expect(4);
+
+			assert.strictEqual(
+				üThing(storeName).set(nameExp, valExp, waitFor * 10),
+				valExp,
+				prefix+'('+sName+').set("'+nameExp+'", "'+valExp+'", '+(waitFor * 10)+')'
+			);
+			assert.ok(
+				üThing(storeName).expire(nameExp, waitFor) >= newTime,
+				prefix+'('+sName+').expire("'+nameExp+'", '+waitFor+') >= '+newTime
+			);
+			assert.strictEqual(
+				üThing(storeName).get(nameExp),
+				valExp,
+				'not expired '+prefix+'('+sName+').get("'+nameExp+'")'
+			);
+			setTimeout(function() {
+				assert.strictEqual(
+					typeof üThing(storeName).get(nameExp),
+					'undefined',
+					'expired '+prefix+'('+sName+').get("'+nameExp+'")'
+				);
+				expired();
+			}, (waitFor * 1000) + 5 );
+		});
+
+		unit.test('set and expire_at "'+nameExpAt+'"', function(assert) {
+			var expiredAt = assert.async();
+			var newTimeAt = parseInt((new Date().valueOf() / 1000) + waitFor, 10);
+
+			assert.expect(4);
+
+			assert.strictEqual(
+				üThing(storeName).set(nameExpAt, valExpAt, waitFor * 10),
+				valExpAt,
+				prefix+'('+sName+').set("'+nameExpAt+'", "'+valExpAt+'", '+(waitFor * 10)+')'
+			);
+			assert.strictEqual(
+				üThing(storeName).expire_at(nameExpAt, newTimeAt),
+				newTimeAt,
+				prefix+'('+sName+').expire_at("'+nameExpAt+'", '+newTimeAt+')'
+			);
+			assert.strictEqual(
+				üThing(storeName).get(nameExpAt),
+				valExpAt,
+				'not expired at '+prefix+'('+sName+').get("'+nameExpAt+'")'
+			);
+			setTimeout(function() {
+				assert.strictEqual(
+					typeof üThing(storeName).get(nameExpAt),
+					'undefined',
+					'expired at '+prefix+'('+sName+').get("'+nameExpAt+'")'
+				);
+				expiredAt();
+			}, (waitFor * 1000) + 5 );
+		});
+	}
+
+	function set_pkg (data, status, xhr) {
 		pkg = _.extend({}, data);
 		$body.trigger('hdPackage');
 	}
 
 	function start_tests (ev) {
-		ev.preventDefault();
+		if(typeof ev === 'object' && typeof ev.preventDefault === 'function') {
+			ev.preventDefault();
+		}
+
+		if (typeof QUnit.config.started === 'number' && QUnit.config.started > 0) {
+			return;
+		}
 
 		$run.remove();
 
+		$('html,body').stop().animate({
+				'scrollTop' : ($qunit.offset().top - 50)+'px'
+		}, 1200, 'easeOutBounce');
+
 		init_tests(QUnit);
 
-		run_tests_hoard(QUnit, 'hoard', hoard)
-		run_tests_hoard(QUnit, 'hoardDist', hoardDist)
-		run_tests_hoard(QUnit, 'hoardMin', hoardMin)
+		if (!('noDev' in getGotten)) {
+			run_tests_hoard(QUnit, 'hoard', hoard)
+			run_tests_ü(QUnit, 'ü', ü);
+			run_tests_ü(QUnit, 'ü', ü, next_store_name());
 
-		run_tests_ü(QUnit, 'ü', ü);
-		run_tests_ü(QUnit, 'ü', ü, next_store_name());
+			if ('runPerf' in getGotten) {
+				run_tests_perf_ü(QUnit, 'ü', ü);
+			}
+		}
 
-		run_tests_ü(QUnit, 'üDist', üDist);
-		run_tests_ü(QUnit, 'üDist', üDist, next_store_name());
+		if ('runDist' in getGotten) {
+			if (typeof hoardDist !== 'object') {
+				throw 'Failed to load minified version to test!';
+			}
 
-		run_tests_ü(QUnit, 'üMin', üMin);
-		run_tests_ü(QUnit, 'üMin', üMin, next_store_name());
+			run_tests_hoard(QUnit, 'hoardDist', hoardDist)
+			run_tests_ü(QUnit, 'üDist', üDist);
+			run_tests_ü(QUnit, 'üDist', üDist, next_store_name());
+
+			if ('runPerf' in getGotten) {
+				run_tests_perf_ü(QUnit, 'üDist', üDist);
+			}
+		}
+
+		if ('runMini' in getGotten) {
+			if (typeof hoardMin !== 'object') {
+				throw 'Failed to load minified version to test!';
+			}
+
+			run_tests_hoard(QUnit, 'hoardMin', hoardMin)
+			run_tests_ü(QUnit, 'üMin', üMin);
+			run_tests_ü(QUnit, 'üMin', üMin, next_store_name());
+
+			if ('runPerf' in getGotten) {
+				run_tests_perf_ü(QUnit, 'üMin', üMin);
+			}
+		}
 	}
+
+	function str_num (num) {
+		var neg = '';
+		var uNum = '';
+		var n = null;
+		var nI = null;
+		var nD = null;
+		var nRx = /(\d+)(\d{3})/;
+
+		if (_.isNumber(num) && ((''+num).length > 3)) {
+			uNum = ''+num;
+			n = uNum.split('.');
+			nI = n[0];
+			nD = n.length > 1 ? '.'+n[1] : '';
+
+			while (nRx.test(nI)) {
+				nI = nI.replace(nRx, '$1'+','+'$2');
+			}
+
+			return nI+nD;
+		}
+
+		return  ''+num;
+	};
 
 	/* Run ********************************/
 
+	QUnit.config.autostart = false;
+	QUnit.config.scrolltop = false;
+	//QUnit.config.hidepassed = true;
+	QUnit.config.urlConfig.unshift({
+		id: 'runPerf',
+		value: '1',
+		label: 'Run performance',
+		tooltip: 'Run performance tests for all test sets.'
+	});
+	QUnit.config.urlConfig.unshift({
+		id: 'runMini',
+		value: '1',
+		label: 'Run mini',
+		tooltip: 'Run tests for minified version copied by running `grunt dev`.'
+	});
+	QUnit.config.urlConfig.unshift({
+		id: 'runDist',
+		value: '1',
+		label: 'Run dist',
+		tooltip: 'Run tests for dist version copied by running `grunt dev`.'
+	});
+	QUnit.config.urlConfig.unshift({
+		id: 'noDev',
+		value: '1',
+		label: 'Skip dev',
+		tooltip: 'Skip performing tests for dev version copied by running `grunt dev`.'
+	});
+	QUnit.config.urlConfig.unshift({
+		id: 'run',
+		value: '1',
+		label: 'Auto-run',
+		tooltip: 'Auto-run on refresh.'
+	});
+
 	$.ajax({
 		url: '../../package.json',
-		//async: true,
 		dataType: 'json',
+		cache: true,
 		error: err_pkg,
 		success: set_pkg
 	});
 
 	$body.on('hdPackage', pop_ui);
 
-	$run.on('click', 'button', start_tests);
+	$(function () {
+		get_get('run');
 
-	QUnit.config.autostart = false;
-	//QUnit.config.hidepassed = true;
-	QUnit.config.scrolltop = false;
+		$run.on('click', 'button', start_tests);
+
+		if ('run' in getGotten) {
+			setTimeout(start_tests, 500);
+		}
+	});
 
 })();
 

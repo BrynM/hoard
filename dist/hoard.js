@@ -3,7 +3,7 @@
 * hoard.js v0.0.1
 * A simple, expiring memory cache implementation for JavaScript
 * © 2015 Bryn Mosher (https://github.com/BrynM) GPLv3
-* Build: BrynM on myakka 0.0.1-1442821185 master bb128bc 2015-09-21T07:39:45.207Z
+* Build: BrynM on myakka 0.0.1-1443174995 master 8e93100 2015-09-25T09:56:35.249Z
 */
 (function() {
     var hoardName = typeof HOARD_NAME === 'string' && HOARD_NAME.length > 0 ? HOARD_NAME : 'hoard';
@@ -18,15 +18,16 @@
     var hdUserStoreNames = {};
     var hdIdBase = new Date().valueOf() / 1e3 * Math.random() * 100 * Math.random();
     function HoardStore(hoardName, a) {
-        var hdsCacheVals = {};
         var hdsCacheTimes = {};
+        var hdsCacheVals = {};
         var hdsGcRunning = false;
         var hdsGcSched;
-        var hdsHoardName;
-        var hdsStoreId;
         var hdsHoardId;
+        var hdsHoardName;
+        var c = undefined;
         var hdsOpts = merge_opts(a);
         var hdsSelf = this;
+        var hdsStoreId;
         var hdsStoreIdx;
         function hds_event(a, b) {
             var c = {
@@ -57,13 +58,14 @@
             hdsCacheTimes = {};
         };
         this.del = function hds_del(a) {
-            var b = hds_to_key(a);
-            var c;
-            if (typeof hdsCacheVals[b] !== 'undefined') {
-                hdsCacheVals[b] = c;
-                hdsCacheTimes[b] = c;
+            var d = hds_to_key(a);
+            if (b(hdsCacheVals[d])) {
+                hdsCacheVals[d] = c;
             }
-            return typeof hdsCacheTimes[b] === 'undefined';
+            if (b(hdsCacheTimes[d])) {
+                hdsCacheTimes[d] = c;
+            }
+            return !b(hdsCacheTimes[d]);
         };
         this.expire = function hds_expire(a, b) {
             var c = is_num(b) ? parseInt(b, 10) : null;
@@ -98,7 +100,7 @@
             var a = stamp;
             var b;
             if (hdsGcRunning) {
-                return;
+                return false;
             }
             hdsGcRunning = true;
             hds_event('hoardGcBegin', this);
@@ -112,19 +114,26 @@
             return true;
         };
         this.get = function hds_get(a) {
-            var b = hds_to_key(a);
-            if (!b) {
+            var d = hds_to_key(a);
+            if (!d) {
                 return;
             }
-            if (typeof hdsCacheVals[b] !== 'undefined') {
-                if (stamp() >= hdsCacheTimes[b]) {
+            if (b(hdsCacheVals[d])) {
+                if (!b(hdsCacheTimes[d])) {
+                    hdsCacheVals[d] = c;
+                    return;
+                }
+                if (stamp() >= hdsCacheTimes[d]) {
                     this.del(a);
                     return;
                 }
-                if (hdsOpts.useJSON) {
-                    return JSON.parse(hdsCacheVals[b]);
+                if (hdsOpts.storage == 'json') {
+                    return JSON.parse(hdsCacheVals[d]);
                 }
-                return hdsCacheVals[b];
+                if (hdsOpts.storage == 'lzw') {
+                    return JSON.parse(LZString.decompress(hdsCacheVals[d]));
+                }
+                return hdsCacheVals[d];
             }
         };
         this.keys = function hds_keys() {
@@ -187,22 +196,34 @@
             if (d > hdsOpts.lifeMax) {
                 d = hdsOpts.lifeMax;
             }
-            hdsCacheVals[e] = hdsOpts.useJSON ? JSON.stringify(b) : b;
+            switch (hdsOpts.storage) {
+              case 'json':
+                hdsCacheVals[e] = JSON.stringify(b);
+                break;
+
+              case 'lzw':
+                hdsCacheVals[e] = LZString.compress(JSON.stringify(b));
+                break;
+
+              default:
+                hdsCacheVals[e] = b;
+                break;
+            }
             hdsCacheTimes[e] = hds_expy(d);
             return this.get(a);
         };
         this.get_hoard_id = function hds_hoard_id() {
             return '' + hdsHoardId;
         };
-        this.stringify = function hds_stringify(a, b) {
-            var c = {};
-            var d;
-            for (d in hdsCacheVals) {
-                if (d in hdsCacheTimes) {
-                    c[d] = [ JSON.parse(hdsCacheVals[d]), hdsCacheTimes[d] ];
+        this.stringify = function hds_stringify(a, c) {
+            var d = {};
+            var e;
+            for (e in hdsCacheVals) {
+                if (b(hdsCacheVals[e]) && b(hdsCacheTimes[e])) {
+                    d[e] = [ JSON.parse(hdsCacheVals[e]), '' + hdsCacheTimes[e] ];
                 }
             }
-            return JSON.stringify(c, a, b);
+            return JSON.stringify(d, a, c);
         };
         hdsStoreIdx = hdUserStores.push(this) - 1;
         hdsHoardName = is_str(hoardName) ? '' + hoardName : '';
@@ -214,6 +235,15 @@
         hdUserStoreNames[hdsHoardName] = hdsStoreIdx;
         hds_sched_garbage();
     }
+    HoardStore.prototype.toString = function() {
+        return '[Object HoardStore]';
+    };
+    HoardStore.prototype.valueOf = function() {
+        return this.stringify();
+    };
+    HoardStore.prototype.keys = function() {
+        return this.keys();
+    };
     function call_store(a, b) {
         var c = hoardCore.store(a);
         var d = Array.prototype.slice.call(arguments).slice(2);
@@ -233,6 +263,12 @@
             c[b] = call_store.apply(call_store, d);
         }
         return c;
+    }
+    function a(a) {
+        if (is_obj(a)) {
+            return Object.keys(a).length;
+        }
+        return 0;
     }
     function merge_opts(a) {
         var b;
@@ -279,6 +315,9 @@
     }
     function is_func(a) {
         return typeof a === 'function';
+    }
+    function b(a) {
+        return typeof a !== 'undefined' && a !== null;
     }
     function is_num(a, b) {
         b = typeof b === 'undefined' ? true : false;
@@ -348,10 +387,19 @@
             return is_num(a, true) ? parseInt(a, 10) : is_num(b) ? b : 0;
         }
     };
-    hdDefOpts.useJSON = {
-        val: true,
+    hdDefOpts.storage = {
+        val: 'json',
         check: function(a, b) {
-            return a ? true : is_bool(b) ? b : true;
+            var c = ('' + a).toLowerCase().trim();
+            var d = ('' + a).toLowerCase().trim();
+            var e = [ 'json', 'plain', 'lzw' ];
+            if (e.indexOf(c) > -1) {
+                return c;
+            }
+            if (e.indexOf(d) > -1) {
+                return d;
+            }
+            return 'json';
         }
     };
     try {

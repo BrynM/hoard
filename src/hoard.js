@@ -31,15 +31,16 @@
 	/* Objects ****************************/
 
 	function HoardStore (hoardName, opts) {
-		var hdsCacheVals = {};
 		var hdsCacheTimes = {};
+		var hdsCacheVals = {};
 		var hdsGcRunning = false;
 		var hdsGcSched;
-		var hdsHoardName;
-		var hdsStoreId;
 		var hdsHoardId;
+		var hdsHoardName;
+		var hdsNil = undefined;
 		var hdsOpts = merge_opts(opts);
 		var hdsSelf = this;
+		var hdsStoreId;
 		var hdsStoreIdx;
 
 		function hds_event (evName, data) {
@@ -80,14 +81,16 @@
 
 		this.del = function hds_del (key) {
 			var kKey = hds_to_key(key);
-			var nil;
 
-			if (typeof hdsCacheVals[kKey] !== 'undefined') {
-				hdsCacheVals[kKey] = nil;
-				hdsCacheTimes[kKey] = nil;
+			if (is_val(hdsCacheVals[kKey])) {
+				hdsCacheVals[kKey] = hdsNil;
 			}
 
-			return typeof hdsCacheTimes[kKey] === 'undefined';
+			if (is_val(hdsCacheTimes[kKey])) {
+				hdsCacheTimes[kKey] = hdsNil;
+			}
+
+			return !is_val(hdsCacheTimes[kKey]);
 		};
 
 		this.expire = function hds_expire (key, seconds) {
@@ -134,7 +137,7 @@
 			var iter;
 
 			if (hdsGcRunning) {
-				return;
+				return false;
 			}
 
 			hdsGcRunning = true;
@@ -159,15 +162,24 @@
 				return;
 			}
 
-			if (typeof hdsCacheVals[kKey] !== 'undefined') {
+			if (is_val(hdsCacheVals[kKey])) {
+				if (!is_val(hdsCacheTimes[kKey])) {
+					hdsCacheVals[kKey] = hdsNil;
+					return;
+				}
+
 				if (stamp() >= hdsCacheTimes[kKey]) {
 					this.del(key);
 
 					return;
 				}
 
-				if (hdsOpts.useJSON) {
+				if (hdsOpts.storage == 'json') {
 					return JSON.parse(hdsCacheVals[kKey]);
+				}
+
+				if (hdsOpts.storage == 'lzw') {
+					return JSON.parse(LZString.decompress(hdsCacheVals[kKey]));
 				}
 
 				return hdsCacheVals[kKey];
@@ -249,7 +261,20 @@
 				kLife = hdsOpts.lifeMax;
 			}
 
-			hdsCacheVals[kKey] = hdsOpts.useJSON ? JSON.stringify(val) : val;
+			switch (hdsOpts.storage) {
+				case 'json':
+					hdsCacheVals[kKey] = JSON.stringify(val);
+					break;
+
+				case 'lzw':
+					hdsCacheVals[kKey] = LZString.compress(JSON.stringify(val));
+					break;
+
+				default:
+					hdsCacheVals[kKey] = val;
+					break;
+			}
+
 			hdsCacheTimes[kKey] = hds_expy(kLife);
 
 			return this.get(key);
@@ -264,12 +289,11 @@
 			var iter;
 
 			for (iter in hdsCacheVals) {
-				if (iter in hdsCacheTimes) {
+				if (is_val(hdsCacheVals[iter]) && is_val(hdsCacheTimes[iter])) {
 					vals[iter] = [
 						JSON.parse(hdsCacheVals[iter]),
-						hdsCacheTimes[iter]
+						''+hdsCacheTimes[iter]
 					];
-
 				}
 			}
 
@@ -290,6 +314,9 @@
 
 		hds_sched_garbage();
 	}
+	HoardStore.prototype.toString = function () { return '[Object HoardStore]'; };
+	HoardStore.prototype.valueOf = function () { return this.stringify(); };
+	HoardStore.prototype.keys = function () { return this.keys(); };
 
 	/* Funcs ******************************/
 
@@ -318,7 +345,15 @@
 		}
 
 		return ret;
-	};
+	}
+
+	function count (thing) {
+		if (is_obj(thing)) {
+			return Object.keys(thing).length;
+		}
+
+		return 0;
+	}
 
 	function merge_opts (opts) {
 		var iter;
@@ -382,6 +417,11 @@
 
 	function is_func (func) {
 		return (typeof func === 'function');
+	}
+
+	function is_val (val) {
+		return typeof val !== 'undefined' &&
+			val !== null;
 	}
 
 	function is_num (num, gtZero) {
@@ -476,10 +516,22 @@
 		},
 	};
 
-	hdDefOpts.useJSON = {
-		val: true,
+	hdDefOpts.storage = {
+		val: 'json',
 		check: function (v, d) {
-			return v ? true : ( is_bool(d) ? d : true);
+			var p = (''+v).toLowerCase().trim();
+			var pD = (''+v).toLowerCase().trim();
+			var ch = ['json', 'plain', 'lzw'];
+
+			if (ch.indexOf(p) > -1) {
+				return p;
+			}
+
+			if (ch.indexOf(pD) > -1) {
+				return pD;
+			}
+
+			return 'json';
 		},
 	};
 
