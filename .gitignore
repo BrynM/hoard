@@ -10,5 +10,6 @@ test/js/jquery*.js
 test/css/jquery*.css
 test/js/underscore-min.js
 test/js/markdown.js
+test/js/lz-string.min.js
 
 
