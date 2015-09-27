@@ -9,6 +9,7 @@ Hoard is a simple memory based cache meant to be unsed interally by JavaScript c
 * multiple discreet cache stores
 * handy alias for getting a specific cache store to act upon
 * functionality to act upon all stores at once
+* per store data can be javascript objects (referenced), JSON envoded, or LZW compressed JSON
 * 5.64 kb minified (5766 bytes)
 * 12.91 kb unminified (13218 bytes)
 
@@ -31,7 +32,7 @@ Stores can be created by passing a string name and optional arguments.
     // create a store named "foo" and get its name
     var fooName = ü("foo").get_name(); // "foo"
 
-    // create a store named "bar" and a 60 second default key life, then get its name
+    // create a store named "bar" and set a 60 second default key life, then get its name
     var fooName = ü("bar", {lifeDefault: 60}).get_name(); // "bar"
 
 ## Store Members

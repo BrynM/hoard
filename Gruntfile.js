@@ -238,7 +238,46 @@ module.exports = function(grunt) {
 		src: 'node_modules/lz-string/libs/lz-string.min.js',
 		dest: paths.testBase+'js/lz-string.min.js',
 	});
-
+	gruntCfg.copy.dev.files.push({
+		expand: false,
+		src: 'node_modules/jquery/dist/jquery.min.js',
+		dest: paths.testBase+'js/jquery.min.js',
+	});
+	gruntCfg.copy.dev.files.push({
+		expand: false,
+		src: 'node_modules/jquery-ui/jquery-ui.js',
+		dest: paths.testBase+'js/jquery-ui.js',
+	});
+	gruntCfg.copy.dev.files.push({
+		expand: false,
+		src: 'node_modules/jquery-ui/themes/base/jquery-ui.css',
+		dest: paths.testBase+'css/jquery-ui.css',
+	});
+	gruntCfg.copy.dev.files.push({
+		expand: false,
+		src: 'node_modules/jquery-ui/themes/base/jquery-ui.css',
+		dest: paths.testBase+'css/jquery-ui.css',
+	});
+	gruntCfg.copy.dev.files.push({
+		expand: false,
+		src: 'node_modules/markdown/lib/markdown.js',
+		dest: paths.testBase+'js/markdown.js',
+	});
+	gruntCfg.copy.dev.files.push({
+		expand: false,
+		src: 'node_modules/markdown/lib/markdown.js',
+		dest: paths.testBase+'js/markdown.js',
+	});
+	gruntCfg.copy.dev.files.push({
+		expand: false,
+		src: 'node_modules/underscore/underscore-min.js',
+		dest: paths.testBase+'js/underscore-min.js',
+	});
+	gruntCfg.copy.dev.files.push({
+		expand: false,
+		src: 'node_modules/bpmv/dist/bpmv.min.js',
+		dest: paths.testBase+'js/bpmv.min.js',
+	});
 
 	/* replace task ***********************/
 
@@ -314,7 +353,9 @@ module.exports = function(grunt) {
 	gruntCfg.watch.dev.tasks = [
 		'dev',
 	];
-	gruntCfg.watch.dev.options = {};
+	gruntCfg.watch.dev.options = {
+		atBegin: true,
+	};
 
 	/* run all the things! ****************/
 

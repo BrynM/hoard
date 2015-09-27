@@ -79,7 +79,6 @@ body {
 }
 #hdContent #qunit,
 #hdContent #runtests {
-	margin-bottom: 500px;
 }
 #hdContent #qunit #qunit-header,
 #hdContent #qunit #qunit-header a {
@@ -88,10 +87,6 @@ body {
 
 }
 #hdContent #qunit-banner {
-/*
-	98782d
-	background-color: #E6E472;
-*/
 	background: linear-gradient(135deg,  #98782d 40%, #E6E472 50%, #98782d 60%);
 	background-position: 0 0;
 	background-size: 200% 200%;
@@ -128,4 +123,37 @@ body {
 #hdContent #qunit #qunit-tests .pass .test-name,
 #hdContent #qunit #qunit-testresult a {
 	color: #232323;
+}
+#hdContent #perfTotals h3 {
+	margin-bottom: 0;
+}
+#hdContent #perfTotals table.performance {
+	font-family: "Lucida Console", Courier, monospace;
+	font-size: 12px;
+	width: 600px;
+}
+#hdContent #perfTotals table.performance th,
+#hdContent #perfTotals table.performance td {
+	text-align: right;
+	width: 25%;
+	padding: 0px 5px;
+}
+#hdContent #perfTotals table.performance th:first-child {
+	background-color: transparent !important;
+
+}
+#hdContent #perfTotals table.performance th:nth-child(odd),
+#hdContent #perfTotals table.performance td:nth-child(odd) {
+	background-color: rgba(255, 252, 232, 0.7);
+}
+#hdContent #perfTotals table.performance th:nth-child(even),
+#hdContent #perfTotals table.performance td:nth-child(even) {
+	background-color: rgba(152, 120, 45, 0.1);
+}
+#hdContent #perfTotals table.performance tbody tr:hover,
+#hdContent #perfTotals table.performance tbody tr:hover td {
+	background-color: rgba(248, 245, 122, 0.45);
+}
+#hdContent .spacer {
+	margin-bottom: 500px;
 }

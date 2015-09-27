@@ -10,12 +10,20 @@
 	var $body = $('body');
 	var $readme = $('#readme');
 	var $run = $('#runtests');
+	var $quFixture = $('#qunit-fixture');
 	var $qunit = $('#qunit');
+	var $tplPerfHeader = $('template#perfHeader');
+	var $tplPerfTable = $('template#perfTable');
+	var $tplPerfTableRow = $('template#perfTableRow');
 	var pass = 'pass';
 	var nameGen = '000000';
 	var perfGen = '0000000000000000000000000000000000000000';
 	var genSets = [[48, 57], [65, 90], [97, 122]]; // in ascending order
 	var getGotten = {};
+	var keptPerf = 100;
+	var selIdPerfTotals = 'perfTotals';
+	var tokeDelims = {l: '{{', r: '}}'};
+	var rgxReplaceTpl = /\{\{[^}]+\}\}/g;
 
 	var pkg;
 
@@ -128,6 +136,88 @@
 		$readme.html(markdown.toHTML(data, 'Maruku'));
 	}
 
+	function report_perf_averages_ü_sequential (hist) {
+		var hist = JSON.parse(localStorage['perf']);
+		var selPerf = '#'+selIdPerfTotals;
+		var $perf = $(selPerf);
+		var iter;
+		var rec, len;
+		var cDur;
+		var cKs;
+		var cTot;
+		var tplData;
+		var html;
+		var rows;
+		var lastIdx;
+
+		if($perf.length < 1) {
+			$quFixture.after('<div id="'+selIdPerfTotals+'" style="clear: both"><h1>Performance Averages</h1></div>');
+			$perf = $(selPerf);
+		}
+
+		for (iter in hist) {
+			if (!_.isArray(hist[iter])) {
+				continue;
+			}
+
+			if (!_.isObject(hist[iter][0]) || !_.isNumber(hist[iter][0].tot)) {
+				continue;
+			}
+
+			len = hist[iter].length;
+			cDur = 0;
+			cKs = 0;
+			cTot = 0;
+			html = [];
+			rows = [];
+			lastIdx = hist[iter].length -1;
+
+			if (lastIdx < 0) {
+				continue;
+			}
+
+			for (rec = 0; rec < len; rec++) {
+				cDur = parseInt(cDur + hist[iter][rec].dur, 10);
+				cKs = parseInt(cKs + hist[iter][rec].ks, 10);
+				cTot = parseInt(cTot + hist[iter][rec].tot, 10);
+			}
+
+			tplData = {
+				'key': iter,
+				'keySafe': iter.replace(/[^a-zü]/gi, '_'),
+				'count': len,
+				'countPlur': len > 1 ? 's' : '',
+			};
+
+			html.push(bpmv.toke($tplPerfHeader.html(), tplData, false, tokeDelims).replace(rgxReplaceTpl, ''));
+			html.push(bpmv.toke($tplPerfTable.html(), tplData, false, tokeDelims));
+
+			tplData.desc = 'last run';
+			tplData.dur = str_num(hist[iter][lastIdx].dur / 1000, 3);
+			tplData.ks = str_num(hist[iter][lastIdx].ks, 3);
+			tplData.tot = str_num(hist[iter][lastIdx].tot);
+
+			rows.push(bpmv.toke($tplPerfTableRow.html(), tplData, false, tokeDelims));
+
+			tplData.desc = 'average';
+			tplData.dur = str_num((cDur / len) / 1000, 3);
+			tplData.ks = str_num(cKs / len, 3);
+			tplData.tot = str_num(Math.ceil(cTot / len));
+
+			rows.push(bpmv.toke($tplPerfTableRow.html(), tplData, false, tokeDelims));
+
+			tplData.desc = 'total';
+			tplData.dur = str_num(cDur / 1000, 3);
+			tplData.ks = str_num(cKs, 3);
+			tplData.tot = str_num(cTot);
+
+			rows.push(bpmv.toke($tplPerfTableRow.html(), tplData, false, tokeDelims));
+
+			$perf.append(html.join('\n'));
+			$perf.find('#perfTable-'+tplData.keySafe).html(rows.join('\n'))
+		}
+	}
+
 	function run_tests_hoard (unit, prefix, hoardThing) {
 		var sName = next_store_name();
 		var sNameClear = next_store_name();
@@ -228,8 +318,10 @@
 	}
 
 	function run_tests_perf_ü (unit, prefix, üThing) {
-		run_tests_perf_ü_sequential(unit, prefix, üThing, next_store_name(), undefined, 150000);
+		run_tests_perf_ü_sequential(unit, 'JSON '+prefix, üThing, next_store_name(), {storage: 'json'}, 150000);
 		run_tests_perf_ü_sequential(unit, 'lzw '+prefix, üThing, next_store_name(), {storage: 'lzw'}, 15000); // 1/10th! ouch!
+
+		QUnit.done(report_perf_averages_ü_sequential);
 	}
 
 	function run_tests_perf_ü_sequential (unit, prefix, üThing, storeName, opts, cnt) {
@@ -245,8 +337,19 @@
 			var stamp = new Date().valueOf();
 			var key, val;
 			var tot = 0;
+			var lsHist;
 
-			assert.expect(3);
+			if (!_.isString(localStorage['perf'])) {
+				localStorage['perf'] = JSON.stringify({});
+			}
+
+			lsHist = JSON.parse(localStorage['perf']);
+
+			if (!_.isArray(lsHist[prefix])) {
+				lsHist[prefix] = [];
+			}
+
+			assert.expect(4);
 
 			assert.strictEqual(
 				üThing(storeName, opts).constructor.name,
@@ -285,10 +388,20 @@
 
 					keySec = Math.round((tot / dur) * 100000) / 100;
 
+					lsHist[prefix].push({'ks': keySec, 'tot': tot, 'dur': dur});
+					lsHist[prefix] = lsHist[prefix].slice(0, keptPerf);
+
+					localStorage['perf'] = JSON.stringify(lsHist);
+
 					return keySec;
 				})(),
 				_.isNumber(cnt) ? parseInt(cnt, 10) : 1000,
-				prefix+'('+sName+') - KEYS: '+str_num(tot)+' - PERF: '+str_num(keySec)+' keys/sec - LAST: '+key
+				prefix+'('+sName+') - KEYS: '+str_num(tot)+' - PERF: '+str_num(keySec, 3)+' keys/sec - LAST: '+key
+			);
+
+			assert.ok(
+				üThing(storeName).clear() == undefined,
+				prefix+'('+sName+').clear()'
 			);
 		});
 	}
@@ -472,28 +585,34 @@
 		}
 	}
 
-	function str_num (num) {
+	function str_num (num, prec) {
 		var neg = '';
 		var uNum = '';
 		var n = null;
 		var nI = null;
-		var nD = null;
+		var nD = '';
 		var nRx = /(\d+)(\d{3})/;
+		var pr = bpmv.num(prec) ? parseInt(prec, 10) : 0;
 
-		if (_.isNumber(num) && ((''+num).length > 3)) {
-			uNum = ''+num;
-			n = uNum.split('.');
-			nI = n[0];
-			nD = n.length > 1 ? '.'+n[1] : '';
+		if (bpmv.num(num, true)) {
 
+		}
+
+		uNum = ''+num;
+		n = uNum.split('.');
+		nI = n[0];
+
+		if (pr > 0) {
+			nD = n.length > 1 ? '.'+bpmv.pad((''+n[1]).substr(0, pr), pr) : '.'+bpmv.pad('0', pr);
+		}
+
+		if (nI.length > 3) {
 			while (nRx.test(nI)) {
 				nI = nI.replace(nRx, '$1'+','+'$2');
 			}
-
-			return nI+nD;
 		}
 
-		return  ''+num;
+		return nI+nD;
 	};
 
 	/* Run ********************************/
