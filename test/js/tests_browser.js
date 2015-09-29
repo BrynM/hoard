@@ -679,7 +679,7 @@
 			queue_test_sets('hoard', hoard, 'ü', ü);
 		}
 
-		if ('runBuilt' in getGotten) {
+		if (!('skipBuilt' in getGotten)) {
 			if (typeof hoardDist !== 'object') {
 				throw 'Failed to load minified version to test!';
 			}
@@ -742,16 +742,16 @@
 		tooltip: 'skip the standard tests.'
 	});
 	QUnit.config.urlConfig.unshift({
-		id: 'runBuilt',
+		id: 'skipBuilt',
 		value: '1',
-		label: 'Run built',
-		tooltip: 'Run tests for dist and minified versions copied by running `grunt dev`.'
+		label: 'Skip built',
+		tooltip: 'Skip tests for dist and minified versions copied by running `grunt dev`.'
 	});
 	QUnit.config.urlConfig.unshift({
 		id: 'noDev',
 		value: '1',
 		label: 'Skip dev',
-		tooltip: 'Skip performing tests for dev version copied by running `grunt dev`.'
+		tooltip: 'Skip tests for dev version copied by running `grunt dev`.'
 	});
 	QUnit.config.urlConfig.unshift({
 		id: 'rerun',
