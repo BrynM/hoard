@@ -288,7 +288,8 @@
 
 	function run_tests_hoard (unit, prefix, hoardThing) {
 		var sName = next_store_name();
-		var sNameClear = next_store_name();
+		var sNameGetAll = next_store_name();
+		var sNameSetAll = next_store_name();
 		var getAllKey = next_store_name();
 		var getAllVal = next_store_name();
 		var setAllKey = next_store_name();
@@ -296,8 +297,8 @@
 
 		unit.module('HOARD_NAME '+prefix);
 
-		unit.test('get main store and get store "'+sName+'"', function(assert) {
-			assert.expect(2);
+		unit.test('get main store and get store "'+sName+'", then kill "'+sName+'"', function(assert) {
+			assert.expect(3);
 
 			assert.strictEqual(
 				hoardThing.store().constructor.name,
@@ -308,11 +309,16 @@
 				hoardThing.store(sName).constructor.name,
 				'HoardStore',
 				prefix+'.store("'+sName+'") is HoardStore'
+			);
+			assert.strictEqual(
+				typeof hoardThing.kill(sName),
+				'number',
+				prefix+'.store("'+sName+'") was killed'
 			);
 		});
 
 		unit.test('set all "'+setAllKey+'" to "'+setAllVal+'"', function(assert) {
-			assert.expect(5);
+			assert.expect(6);
 
 			assert.strictEqual(
 				hoardThing.store().constructor.name,
@@ -320,9 +326,9 @@
 				prefix+'.store() is HoardStore'
 			);
 			assert.strictEqual(
-				hoardThing.store(sName).constructor.name,
+				hoardThing.store(sNameSetAll).constructor.name,
 				'HoardStore',
-				prefix+'.store("'+sName+'") is HoardStore'
+				prefix+'.store("'+sNameSetAll+'") is HoardStore'
 			);
 
 			assert.strictEqual(
@@ -336,17 +342,21 @@
 				prefix+'.store().get("'+setAllKey+'") === "'+setAllVal+'"'
 			);
 			assert.strictEqual(
-				hoardThing.store(sName).get(setAllKey),
+				hoardThing.store(sNameSetAll).get(setAllKey),
 				setAllVal,
-				prefix+'.store("'+sName+'").get("'+setAllKey+'") === "'+setAllVal+'"'
+				prefix+'.store("'+sNameSetAll+'").get("'+setAllKey+'") === "'+setAllVal+'"'
 			);
-
+			assert.strictEqual(
+				typeof hoardThing.kill(sNameSetAll),
+				'number',
+				prefix+'.store("'+sNameSetAll+'") was killed'
+			);
 		});
 
 		unit.test('get all "'+getAllKey+'"', function(assert) {
 			var getRes;
 
-			assert.expect(6);
+			assert.expect(7);
 
 			assert.strictEqual(
 				hoardThing.store().constructor.name,
@@ -354,9 +364,9 @@
 				prefix+'.store() is HoardStore'
 			);
 			assert.strictEqual(
-				hoardThing.store(sName).constructor.name,
+				hoardThing.store(sNameGetAll).constructor.name,
 				'HoardStore',
-				prefix+'.store("'+sName+'") is HoardStore'
+				prefix+'.store("'+sNameGetAll+'") is HoardStore'
 			);
 
 			assert.strictEqual(
@@ -378,9 +388,14 @@
 				prefix+'.all_get("'+getAllKey+'")["main"] === "'+getAllVal+'"'
 			);
 			assert.strictEqual(
-				getRes[sName],
+				getRes[sNameGetAll],
 				getAllVal,
-				prefix+'.all_get("'+getAllKey+'")["'+sName+'"] === "'+getAllVal+'"'
+				prefix+'.all_get("'+getAllKey+'")["'+sNameGetAll+'"] === "'+getAllVal+'"'
+			);
+			assert.strictEqual(
+				typeof hoardThing.kill(sNameGetAll),
+				'number',
+				prefix+'.store("'+sNameGetAll+'") was killed'
 			);
 		});
 	}

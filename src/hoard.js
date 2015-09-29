@@ -453,6 +453,26 @@
 		return (typeof str === 'string' && (!gtZero || str.length > 0));
 	}
 
+	function kill_store (store) {
+		var killIdx;
+
+		if (is_str(store)) {
+			if (store === 'main') {
+				throw 'You cannot kill the main HoardStore!!!';
+			}
+
+			if (store in hdUserStoreNames && is_obj(hdUserStores[hdUserStoreNames[store]])) {
+				killIdx = hdUserStoreNames[store];
+
+				delete(hdUserStores[hdUserStoreNames[store]]);
+				// cannot splice above because of index associations below
+				delete(hdUserStoreNames[store]);
+			}
+		}
+
+		return killIdx;
+	}
+
 	function stamp () {
 		return parseInt(new Date().valueOf() / 1000, 10);
 	}
@@ -500,6 +520,24 @@
 
 	hoardCore.get_transforms = function hoard_get_transforms () {
 		return get_transform_list();
+	};
+
+	hoardCore.kill = function hoard_kill (key) {
+		return kill_store(key);
+	};
+
+	hoardCore.kill_all = function hoard_kill (key) {
+		var ret = {};
+
+		for (iter in hdUserStoreNames) {
+			if (!hdUserStoreNames.hasOwnProperty(iter) || iter === 'main') {
+				continue;
+			}
+
+			ret[iter] = kill_store(iter);
+		}
+
+		return ret;
 	};
 
 	hoardCore.store = function hoard_store (key, opts) {

@@ -3,7 +3,7 @@
 * hoard.js v0.0.3
 * A simple, expiring memory cache implementation for JavaScript
 * © 2015 Bryn Mosher (https://github.com/BrynM) GPL-3.0
-* Build: BrynM on myakka 0.0.3-1443509587 0.0.3-docs 4464724 2015-09-29T06:53:07.777Z
+* Build: BrynM on myakka 0.0.3-1443511246 0.0.3-docs 8eb6d1a 2015-09-29T07:20:46.707Z
 */
 (function() {
     var hoardName = typeof HOARD_NAME === 'string' && HOARD_NAME.length > 0 ? HOARD_NAME : 'hoard';
@@ -337,6 +337,20 @@
         b = typeof b === 'undefined' ? true : false;
         return typeof a === 'string' && (!b || a.length > 0);
     }
+    function g(a) {
+        var b;
+        if (is_str(a)) {
+            if (a === 'main') {
+                throw 'You cannot kill the main HoardStore!!!';
+            }
+            if (a in hdUserStoreNames && is_obj(hdUserStores[hdUserStoreNames[a]])) {
+                b = hdUserStoreNames[a];
+                delete hdUserStores[hdUserStoreNames[a]];
+                delete hdUserStoreNames[a];
+            }
+        }
+        return b;
+    }
     function stamp() {
         return parseInt(new Date().valueOf() / 1e3, 10);
     }
@@ -372,6 +386,19 @@
     };
     hoardCore.get_transforms = function a() {
         return d();
+    };
+    hoardCore.kill = function a(b) {
+        return g(b);
+    };
+    hoardCore.kill_all = function a(b) {
+        var c = {};
+        for (iter in hdUserStoreNames) {
+            if (!hdUserStoreNames.hasOwnProperty(iter) || iter === 'main') {
+                continue;
+            }
+            c[iter] = g(iter);
+        }
+        return c;
     };
     hoardCore.store = function hoard_store(a, b) {
         if (!is_str(a)) {
