@@ -2,13 +2,10 @@
   "name": "Hoard",
   "version": "0.0.2",
   "description": "A simple, expiring memory cache implementation for JavaScript",
-  "license": "GPLv3",
+  "license": "GPL-3.0",
   "repository": "https://github.com/BrynM/hoard.git",
   "homepage": "https://github.com/BrynM/hoard",
   "author": "Bryn Mosher (https://github.com/BrynM)",
-  "bugs": [
-    "https://github.com/BrynM/hoard/issues"
-  ],
   "keywords": [
     "hoard",
     "cache",

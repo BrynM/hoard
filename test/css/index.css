@@ -155,5 +155,15 @@ body {
 	background-color: rgba(248, 245, 122, 0.45);
 }
 #hdContent .spacer {
-	margin-bottom: 500px;
+	margin-bottom: 1000px;
+}
+.perf-pass {
+	color: #169A15;
+}
+.perf-fail {
+	color: #EE5757;
+}
+p.note {
+	font-size: 80%;
+	margin: 3px 0px;
 }

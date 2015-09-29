@@ -32,29 +32,36 @@
 			<div class="spacer"></div>
 		</div>
 
-		<template id="perfHeader">
-			<h3>Performance for <code>{{key}}()</code> after {{count}} test{{countPlur}}</h3>
-		</template>
-
 		<template id="perfTable">
-			<table class="performance">
-				<thead>
-					<tr>
-						<th></th>
-						<th>keys/sec</th>
-						<th>keys</th>
-						<th>seconds</th>
-					</tr>
-				</thead>
-				<tbody id="perfTable-{{keySafe}}">
-				</tbody>
-			</table>
+			<div id="perfTable-{{keySafe}}">
+				<h3>Performance for <code>{{key}}()</code> after {{count}} test{{countPlur}}</h3>
+
+				<p class="note">
+					Performance Target: {{perfTarg}} keys/sec ({{perfBase}} avg minus {{perfTargPct}}%)
+					Performance Result: <span class="perf-{{pOrF}}">{{pOrF}} ({{perfDelta}})</span>
+					Performance From Average: <span class="perf-{{pOrF}}">{{perfPctAvg}}%</span>
+					
+				</p>
+
+				<table class="performance">
+					<thead>
+						<tr>
+							<th></th>
+							<th>keys/sec</th>
+							<th>keys</th>
+							<th>seconds</th>
+						</tr>
+					</thead>
+					<tbody id="perfTable-{{keySafe}}-rows">
+					</tbody>
+				</table>
+			</div>
 		</template>
 
 		<template id="perfTableRow">
 			<tr>
 				<td>{{desc}}</td>
-				<td>{{ks}}</td>
+				<td class="{{pOrF}}">{{ks}}</td>
 				<td>{{tot}}</td>
 				<td>{{dur}}</td>
 			</tr>
@@ -66,11 +73,13 @@
 		<script src="js/bpmv.min.js"></script>
 		<script src="js/underscore-min.js"></script>
 		<script src="js/markdown.js"></script>
+
 		<script src="js/lz-string.min.js"></script>
 
 		<script src="js/qunit.js"></script>
 		<script src="js/qunit-assert-compare.js"></script>
 
+		<!-- hoard -->
 
 		<script src="js/builds/hoard.dev.js"></script>
 
@@ -87,14 +96,5 @@
 		<script src="js/builds/hoard.min.js"></script>
 
 		<script src="js/tests_browser.js"></script>
-
-		<script>
-			QUnit.done(function () {
-				setTimeout(function () {
-					//document.location.reload();
-				}, 2000);
-			})
-		</script>
-
 	</body>
 </html>

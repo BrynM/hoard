@@ -12,5 +12,3 @@ test/js/markdown.js
 test/js/qunit-assert-compare.js
 test/js/qunit.js
 test/js/underscore-min.js
-
-

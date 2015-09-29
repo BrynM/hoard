@@ -12,7 +12,6 @@
 	var $run = $('#runtests');
 	var $quFixture = $('#qunit-fixture');
 	var $qunit = $('#qunit');
-	var $tplPerfHeader = $('template#perfHeader');
 	var $tplPerfTable = $('template#perfTable');
 	var $tplPerfTableRow = $('template#perfTableRow');
 	var pass = 'pass';
@@ -24,8 +23,10 @@
 	var selIdPerfTotals = 'perfTotals';
 	var tokeDelims = {l: '{{', r: '}}'};
 	var rgxReplaceTpl = /\{\{[^}]+\}\}/g;
-
 	var pkg;
+	var allowPerfTargetPct = 10;
+	var qStarted = false;
+	var tStarted = false;
 
 	/* Funcs ******************************/
 
@@ -63,8 +64,31 @@
 		return getGotten;
 	}
 
+	function get_perf_target_ü_sequential(key, gainz, kickLast) {
+		var hist = JSON.parse(localStorage['perf']);
+		var gain = parseFloat(gainz);
+		var cKs = 0;
+		var iter;
+		var bumpIdx = kickLast ? 0 : 1;
+		var minusIdx = kickLast ? 1 : 0;
+
+		if (key in hist) {
+			gain = isNaN(gain) ? 0.0 : gain;
+
+			for (iter = bumpIdx; iter < hist[key].length - minusIdx; iter++) {
+				cKs = parseInt(cKs + hist[key][iter].ks, 10);
+			}
+
+			return cKs > 0 ? Math.floor(((cKs / hist[key].length) * ((100 - gain) / 100)) * 1000) / 1000 : 0;
+		}
+
+		return 0;
+	}
+
 	function init_tests(unit, data, status, xhr) {
-		if (unit && unit.config && !(typeof unit.config.started === 'number' && unit.config.started > 0)) {
+		if (!qStarted) {
+			qStarted = true;
+
 			return unit.start();
 		}
 	}
@@ -136,8 +160,21 @@
 		$readme.html(markdown.toHTML(data, 'Maruku'));
 	}
 
+	function queue_test_sets(hoardLabel, hoardThing, üLabel, üThing) {
+		if (!('skipStd' in getGotten)) {
+			run_tests_hoard(QUnit, hoardLabel, hoardThing)
+			run_tests_ü(QUnit, üLabel, üThing);
+			run_tests_ü(QUnit, üLabel, üThing, next_store_name());
+		}
+
+		if ('runPerf' in getGotten) {
+			run_tests_perf_ü(QUnit, üLabel, üThing, hoardThing);
+		}
+	}
+
 	function report_perf_averages_ü_sequential (hist) {
 		var hist = JSON.parse(localStorage['perf']);
+		var lastRun;
 		var selPerf = '#'+selIdPerfTotals;
 		var $perf = $(selPerf);
 		var iter;
@@ -149,13 +186,20 @@
 		var html;
 		var rows;
 		var lastIdx;
+		var $inner;
+		var idx;
+		var avg;
 
 		if($perf.length < 1) {
 			$quFixture.after('<div id="'+selIdPerfTotals+'" style="clear: both"><h1>Performance Averages</h1></div>');
 			$perf = $(selPerf);
 		}
 
-		for (iter in hist) {
+		var ordered = bpmv.keys(hist).sort();
+
+		for (idx = 0; idx < ordered.length; idx++) {
+			iter = ordered[idx];
+
 			if (!_.isArray(hist[iter])) {
 				continue;
 			}
@@ -171,6 +215,7 @@
 			html = [];
 			rows = [];
 			lastIdx = hist[iter].length -1;
+			lastRun = JSON.parse(localStorage['_last_'+iter]);
 
 			if (lastIdx < 0) {
 				continue;
@@ -182,39 +227,62 @@
 				cTot = parseInt(cTot + hist[iter][rec].tot, 10);
 			}
 
+			avg = cKs / len;
+
 			tplData = {
 				'key': iter,
 				'keySafe': iter.replace(/[^a-zü]/gi, '_'),
 				'count': len,
 				'countPlur': len > 1 ? 's' : '',
+				'perfBase': str_num(lastRun.base, 3),
+				'perfTarg': str_num(lastRun.exp, 3),
+				'perfTargPct': allowPerfTargetPct,
+				'pOrF': lastRun.ks >= lastRun.exp ? 'pass' : 'fail',
+				'perfMsg': '',
+				'perfDelta': str_num(lastRun.ks - lastRun.base, 3),
+				'perfLast': str_num(lastRun.ks, 3),
+				'perfPct': (1 - (lastRun.exp / lastRun.ks)) * 100,
+				'perfPctAvg': (1 - (lastRun.base / lastRun.ks)) * 100
 			};
 
-			html.push(bpmv.toke($tplPerfHeader.html(), tplData, false, tokeDelims).replace(rgxReplaceTpl, ''));
-			html.push(bpmv.toke($tplPerfTable.html(), tplData, false, tokeDelims));
+			tplData.perfPct = tplData.perfPct > 0 ? '+'+str_num(tplData.perfPct, 3) : str_num(tplData.perfPct, 3);
+			tplData.perfPctAvg = tplData.perfPctAvg > 0 ? '+'+str_num(tplData.perfPctAvg, 3) : str_num(tplData.perfPctAvg, 3);
+
+			html.push(bpmv.toke($tplPerfTable.html(), tplData, false, tokeDelims).replace(rgxReplaceTpl, ''));
 
 			tplData.desc = 'last run';
-			tplData.dur = str_num(hist[iter][lastIdx].dur / 1000, 3);
-			tplData.ks = str_num(hist[iter][lastIdx].ks, 3);
-			tplData.tot = str_num(hist[iter][lastIdx].tot);
+			tplData.dur = str_num(lastRun.dur / 1000, 3);
+			tplData.ks = str_num(lastRun.ks, 3);
+			tplData.tot = str_num(lastRun.tot);
+			tplData.pOrF = lastRun.ks >= lastRun.exp ? 'perf-pass' : 'perf-fail';
 
-			rows.push(bpmv.toke($tplPerfTableRow.html(), tplData, false, tokeDelims));
+			rows.push(bpmv.toke($tplPerfTableRow.html(), tplData, false, tokeDelims).replace(rgxReplaceTpl, ''));
 
 			tplData.desc = 'average';
 			tplData.dur = str_num((cDur / len) / 1000, 3);
-			tplData.ks = str_num(cKs / len, 3);
+			tplData.ks = str_num(avg, 3);
 			tplData.tot = str_num(Math.ceil(cTot / len));
+			tplData.pOrF = '';
+			tplData.perfMsg = '';
 
-			rows.push(bpmv.toke($tplPerfTableRow.html(), tplData, false, tokeDelims));
+			rows.push(bpmv.toke($tplPerfTableRow.html(), tplData, false, tokeDelims).replace(rgxReplaceTpl, ''));
 
 			tplData.desc = 'total';
 			tplData.dur = str_num(cDur / 1000, 3);
 			tplData.ks = str_num(cKs, 3);
 			tplData.tot = str_num(cTot);
 
-			rows.push(bpmv.toke($tplPerfTableRow.html(), tplData, false, tokeDelims));
+			rows.push(bpmv.toke($tplPerfTableRow.html(), tplData, false, tokeDelims).replace(rgxReplaceTpl, ''));
 
-			$perf.append(html.join('\n'));
-			$perf.find('#perfTable-'+tplData.keySafe).html(rows.join('\n'))
+			$inner = $perf.find('#perfTable-'+tplData.keySafe);
+
+			if ($inner && $inner.length > 0) {
+				$inner.replaceWith(html.join('\n'));
+			} else {
+				$perf.append(html.join('\n'));
+			}
+
+			$perf.find('#perfTable-'+tplData.keySafe+'-rows').html(rows.join('\n'))
 		}
 	}
 
@@ -317,19 +385,34 @@
 		});
 	}
 
-	function run_tests_perf_ü (unit, prefix, üThing) {
-		run_tests_perf_ü_sequential(unit, 'JSON '+prefix, üThing, next_store_name(), {storage: 'json'}, 150000);
-		run_tests_perf_ü_sequential(unit, 'lzw '+prefix, üThing, next_store_name(), {storage: 'lzw'}, 15000); // 1/10th! ouch!
+	function run_tests_perf_ü (unit, prefix, üThing, hoardThing) {
+		var txForms = hoardThing.get_transforms();
+		var iter;
+
+		for (iter = 0; iter < txForms.length; iter++) {
+			if (txForms[iter] === 'plain') {
+				continue;
+			}
+
+			run_tests_perf_ü_sequential(
+				unit,
+				txForms[iter]+' '+prefix,
+				üThing,
+				next_store_name(),
+				{storage: txForms[iter]}
+			);
+		}
 
 		QUnit.done(report_perf_averages_ü_sequential);
 	}
 
-	function run_tests_perf_ü_sequential (unit, prefix, üThing, storeName, opts, cnt) {
+	function run_tests_perf_ü_sequential (unit, prefix, üThing, storeName, opts) {
 		var sName = typeof storeName === 'string' ? '"'+storeName+'"' : '';
 		var expectedStoreName = typeof storeName === 'string' ? storeName : 'main';
-		var dur = 3000;
+		var dur = 2000;
 		var charSec;
 		var keySec;
+		var perfBase;
 
 		unit.module('HOARD_CHAR '+prefix+'('+sName+') performance');
 	
@@ -338,6 +421,7 @@
 			var key, val;
 			var tot = 0;
 			var lsHist;
+			var perfTarg;
 
 			if (!_.isString(localStorage['perf'])) {
 				localStorage['perf'] = JSON.stringify({});
@@ -349,7 +433,7 @@
 				lsHist[prefix] = [];
 			}
 
-			assert.expect(4);
+			assert.expect(5);
 
 			assert.strictEqual(
 				üThing(storeName, opts).constructor.name,
@@ -361,6 +445,9 @@
 				expectedStoreName,
 				prefix+'('+sName+').get_name() === "'+expectedStoreName+'"'
 			);
+
+			perfTarg = get_perf_target_ü_sequential(prefix, allowPerfTargetPct);
+			perfBase = get_perf_target_ü_sequential(prefix, 0.0);
 
 			assert.gte((
 				function() {
@@ -374,9 +461,9 @@
 						beg = new Date().valueOf();
 
 						üThing(storeName).set(key, val);
+
 						if (üThing(storeName).get(key) !== val) {
-							throw 'broken perf test';
-							break;
+							throw 'Broken performance test!!! "'+key+'" is not "'+val+'"!!!';
 						}
 
 						ed = new Date().valueOf();
@@ -392,16 +479,30 @@
 					lsHist[prefix] = lsHist[prefix].slice(0, keptPerf);
 
 					localStorage['perf'] = JSON.stringify(lsHist);
+					localStorage['_last_'+prefix] = JSON.stringify({
+						'ks': keySec,
+						'tot': tot,
+						'dur': dur,
+						'exp': perfTarg,
+						'base': perfBase
+					});
 
 					return keySec;
 				})(),
-				_.isNumber(cnt) ? parseInt(cnt, 10) : 1000,
-				prefix+'('+sName+') - KEYS: '+str_num(tot)+' - PERF: '+str_num(keySec, 3)+' keys/sec - LAST: '+key
+				perfTarg,
+				prefix+'('+sName+') - KEYS: '+str_num(tot)+' - PERF: '+str_num(keySec, 3)+' keys/sec - EXPECT: '+str_num(perfTarg, 3)+' ('+str_num(perfBase, 3)+' avg minus '+allowPerfTargetPct+'%) - DELTA: '+str_num(keySec - perfTarg, 3)+' - LAST: '+key
 			);
 
-			assert.ok(
-				üThing(storeName).clear() == undefined,
+			assert.strictEqual(
+				typeof üThing(storeName).clear(),
+				'undefined',
 				prefix+'('+sName+').clear()'
+			);
+
+			assert.strictEqual(
+				üThing(storeName).keys().length,
+				0,
+				prefix+'('+sName+').keys() is empty'
 			);
 		});
 	}
@@ -522,6 +623,22 @@
 				expiredAt();
 			}, (waitFor * 1000) + 5 );
 		});
+
+		unit.test('clear', function(assert) {
+			assert.expect(2);
+
+			assert.strictEqual(
+				typeof üThing(storeName).clear(),
+				'undefined',
+				prefix+'('+sName+').clear()'
+			);
+
+			assert.strictEqual(
+				üThing(storeName).keys().length,
+				0,
+				prefix+'('+sName+').keys() is empty'
+			);
+		});
 	}
 
 	function set_pkg (data, status, xhr) {
@@ -529,59 +646,51 @@
 		$body.trigger('hdPackage');
 	}
 
-	function start_tests (ev) {
+	function scroll_to_tests (ev) {
+		if ($run && $run.length > 0) {
+			$run.remove();
+		}
+
 		if(typeof ev === 'object' && typeof ev.preventDefault === 'function') {
 			ev.preventDefault();
+		}
+
+		$('html,body').stop().animate({
+				'scrollTop' : ($qunit.offset().top - 20)
+		}, 1000, 'easeOutBounce', function (ev) {
+			setTimeout(start_tests, 500);
+		});
+	}
+
+	function start_tests () {
+		if (tStarted) {
+			return;
 		}
 
 		if (typeof QUnit.config.started === 'number' && QUnit.config.started > 0) {
 			return;
 		}
 
-		$run.remove();
-
-		$('html,body').stop().animate({
-				'scrollTop' : ($qunit.offset().top - 50)+'px'
-		}, 1200, 'easeOutBounce');
+		tStarted = true;
 
 		init_tests(QUnit);
 
 		if (!('noDev' in getGotten)) {
-			run_tests_hoard(QUnit, 'hoard', hoard)
-			run_tests_ü(QUnit, 'ü', ü);
-			run_tests_ü(QUnit, 'ü', ü, next_store_name());
-
-			if ('runPerf' in getGotten) {
-				run_tests_perf_ü(QUnit, 'ü', ü);
-			}
+			queue_test_sets('hoard', hoard, 'ü', ü);
 		}
 
-		if ('runDist' in getGotten) {
+		if ('runBuilt' in getGotten) {
 			if (typeof hoardDist !== 'object') {
 				throw 'Failed to load minified version to test!';
 			}
 
-			run_tests_hoard(QUnit, 'hoardDist', hoardDist)
-			run_tests_ü(QUnit, 'üDist', üDist);
-			run_tests_ü(QUnit, 'üDist', üDist, next_store_name());
+			queue_test_sets('hoardDist', hoardDist, 'üDist', üDist);
 
-			if ('runPerf' in getGotten) {
-				run_tests_perf_ü(QUnit, 'üDist', üDist);
-			}
-		}
-
-		if ('runMini' in getGotten) {
 			if (typeof hoardMin !== 'object') {
 				throw 'Failed to load minified version to test!';
 			}
 
-			run_tests_hoard(QUnit, 'hoardMin', hoardMin)
-			run_tests_ü(QUnit, 'üMin', üMin);
-			run_tests_ü(QUnit, 'üMin', üMin, next_store_name());
-
-			if ('runPerf' in getGotten) {
-				run_tests_perf_ü(QUnit, 'üMin', üMin);
-			}
+			queue_test_sets('hoardMin', hoardMin, 'üMin', üMin);
 		}
 	}
 
@@ -623,26 +732,32 @@
 	QUnit.config.urlConfig.unshift({
 		id: 'runPerf',
 		value: '1',
-		label: 'Run performance',
+		label: 'Performance',
 		tooltip: 'Run performance tests for all test sets.'
 	});
 	QUnit.config.urlConfig.unshift({
-		id: 'runMini',
+		id: 'skipStd',
 		value: '1',
-		label: 'Run mini',
-		tooltip: 'Run tests for minified version copied by running `grunt dev`.'
+		label: 'Skip Standard',
+		tooltip: 'skip the standard tests.'
 	});
 	QUnit.config.urlConfig.unshift({
-		id: 'runDist',
+		id: 'runBuilt',
 		value: '1',
-		label: 'Run dist',
-		tooltip: 'Run tests for dist version copied by running `grunt dev`.'
+		label: 'Run built',
+		tooltip: 'Run tests for dist and minified versions copied by running `grunt dev`.'
 	});
 	QUnit.config.urlConfig.unshift({
 		id: 'noDev',
 		value: '1',
 		label: 'Skip dev',
 		tooltip: 'Skip performing tests for dev version copied by running `grunt dev`.'
+	});
+	QUnit.config.urlConfig.unshift({
+		id: 'rerun',
+		value: '1',
+		label: 'Auto-rerun',
+		tooltip: 'Reload the page when testing is finished to rerun the tests.'
 	});
 	QUnit.config.urlConfig.unshift({
 		id: 'run',
@@ -664,10 +779,18 @@
 	$(function () {
 		get_get('run');
 
-		$run.on('click', 'button', start_tests);
+		$run.on('click', 'button', scroll_to_tests);
 
 		if ('run' in getGotten) {
-			setTimeout(start_tests, 500);
+			setTimeout(scroll_to_tests, 500);
+		}
+
+		if ('rerun' in getGotten) {
+			QUnit.done(function () {
+				setTimeout(function () {
+					document.location.reload();
+				}, 3000);
+			})
 		}
 	});
 

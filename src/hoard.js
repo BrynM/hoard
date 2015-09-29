@@ -27,6 +27,7 @@
 	var hdUserStores = [];
 	var hdUserStoreNames = {};
 	var hdIdBase = ((new Date().valueOf()/1000) * Math.random()) * 100 * Math.random();
+	var valTxforms = {};
 
 	/* Objects ****************************/
 
@@ -42,6 +43,10 @@
 		var hdsSelf = this;
 		var hdsStoreId;
 		var hdsStoreIdx;
+		var hdsTxForm = get_transform(hdsOpts.storage);
+		var hdsReadOnlyOpts = [
+			'storage',
+		];
 
 		function hds_event (evName, data) {
 			var evOpts = {
@@ -174,15 +179,7 @@
 					return;
 				}
 
-				if (hdsOpts.storage == 'json') {
-					return JSON.parse(hdsCacheVals[kKey]);
-				}
-
-				if (hdsOpts.storage == 'lzw') {
-					return JSON.parse(LZString.decompress(hdsCacheVals[kKey]));
-				}
-
-				return hdsCacheVals[kKey];
+				return hdsTxForm.dec(hdsCacheVals[kKey]);
 			}
 		};
 
@@ -234,8 +231,12 @@
 		};
 
 		this.set_option = function hds_set_option (opt, val) {
-			if (!is_str(opt) || !hdsOpts.hasOwnProperty(opt) || is_empty(val)) {
+			if (!is_str(opt) || !hdsOpts.hasOwnProperty(opt)) {
 				return;
+			}
+
+			if (hdsReadOnlyOpts.indexOf(opt) > -1) {
+				throw 'Cannot set read-only option "'+opt+'"!!!';
 			}
 
 			if (is_obj(hdDefOpts[opt]) && is_func(hdDefOpts[opt].check)) {
@@ -261,20 +262,7 @@
 				kLife = hdsOpts.lifeMax;
 			}
 
-			switch (hdsOpts.storage) {
-				case 'json':
-					hdsCacheVals[kKey] = JSON.stringify(val);
-					break;
-
-				case 'lzw':
-					hdsCacheVals[kKey] = LZString.compress(JSON.stringify(val));
-					break;
-
-				default:
-					hdsCacheVals[kKey] = val;
-					break;
-			}
-
+			hdsCacheVals[kKey] = hdsTxForm.enc(val);
 			hdsCacheTimes[kKey] = hds_expy(kLife);
 
 			return this.get(key);
@@ -388,6 +376,27 @@
 		return document.dispatchEvent(ev, data);
 	}
 
+	function get_transform (name) {
+		if (is_str(name) && name in valTxforms) {
+			return valTxforms[name];
+		}
+	}
+
+	function get_transform_list () {
+		var ret = [];
+		var iter;
+
+		for (iter in valTxforms) {
+			if (is_str(iter) && is_func(valTxforms[iter].dec) && is_func(valTxforms[iter].enc)) {
+				ret.push(''+iter);
+			}
+		}
+
+		ret.sort();
+
+		return ret;
+	}
+
 	function handle_gc_event (ev) {
 	}
 
@@ -413,6 +422,10 @@
 
 	function is_bool (bool) {
 		return (typeof bool === 'boolean');
+	}
+
+	function is_arr (arr, min) {
+		return Object.prototype.toString.call(arr) === '[object Array]' && (is_num(min) ? arr.length >= min : true);
 	}
 
 	function is_func (func) {
@@ -446,6 +459,17 @@
 
 	/* Public Util Funcs ******************/
 
+	hoardCore.add_transform = function hoard_add_transform (name, encFunc, decFunc) {
+		if (is_str(name) && is_func(encFunc) && is_func(decFunc)) {
+			valTxforms[name] = {
+				dec: decFunc,
+				enc: encFunc
+			};
+
+			return hoardCore.get_transforms();
+		}
+	};
+
 	hoardCore.all_clear = function hoard_all_clear () {
 		return call_store_all('clear');
 	};
@@ -474,6 +498,10 @@
 		return call_store_all('set', key, val, life);
 	};
 
+	hoardCore.get_transforms = function hoard_get_transforms () {
+		return get_transform_list();
+	};
+
 	hoardCore.store = function hoard_store (key, opts) {
 		if (!is_str(key)) {
 			return hdMainStore;
@@ -486,6 +514,26 @@
 		return new HoardStore(key, opts);
 	};
 
+	/* Compressors ************************/
+
+	valTxforms.json = {
+		dec: function (inp) {
+			return JSON.parse(inp);
+		},
+		enc: function (inp) {
+			return JSON.stringify(inp);
+		}
+	};
+
+	valTxforms.plain = {
+		dec: function (inp) {
+			return inp;
+		},
+		enc: function (inp) {
+			return inp;
+		}
+	};
+
 	/* Options ****************************/
 
 	hdDefOpts.prefix = {
@@ -496,7 +544,7 @@
 	};
 
 	hdDefOpts.lifeMax = {
-		val: 31536000, // 1 year = 31536000 secs
+		val: 31536000 * 2, // 1 year = 31536000 secs
 		check: function (v, d) {
 			return is_num(v) ? parseInt(v, 10) : (is_num(d) ? d : 0);
 		},
@@ -519,19 +567,18 @@
 	hdDefOpts.storage = {
 		val: 'json',
 		check: function (v, d) {
-			var p = (''+v).toLowerCase().trim();
-			var pD = (''+v).toLowerCase().trim();
-			var ch = ['json', 'plain', 'lzw'];
+			var p = (''+v).trim();
+			var pD = is_str(d) ? (''+d).trim() : 'json';
 
-			if (ch.indexOf(p) > -1) {
+			if (p in valTxforms) {
 				return p;
 			}
 
-			if (ch.indexOf(pD) > -1) {
+			if (pD in valTxforms) {
 				return pD;
 			}
 
-			return 'json';
+			throw 'Storage format "'+v+'" does not exist!!!';
 		},
 	};
 
@@ -542,6 +589,17 @@
 		hdIsNode = hdIsNode ? process.version : false; // two lines for readibility - convert true to version string
 	} catch (e) {
 		hdIsNode = false;
+	}
+
+	// detect and add support for lz-string if exists
+	if (typeof LZString !== 'undefined' && is_obj(LZString) && is_func(LZString.compress) && is_func(LZString.decompress)) {
+		hoardCore.add_transform('lzw', function hoard_lzw_enc(inp) {
+				return LZString.compress(JSON.stringify(inp));
+			},
+			function hoard_lzw_dec(inp) {
+				return JSON.parse(LZString.decompress(inp));
+			}
+		);
 	}
 
 	hdMainStore = new HoardStore('main', hoardMainOpts);

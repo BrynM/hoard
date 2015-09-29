@@ -1,9 +1,9 @@
 /*!
 * Hoard
-* hoard.js v0.0.1
+* hoard.js v0.0.2
 * A simple, expiring memory cache implementation for JavaScript
-* © 2015 Bryn Mosher (https://github.com/BrynM) GPLv3
-* Build: BrynM on myakka 0.0.1-1443295864 master 07cf7d6 2015-09-26T19:31:04.789Z
+* © 2015 Bryn Mosher (https://github.com/BrynM) GPL-3.0
+* Build: BrynM on myakka 0.0.2-1443502438 master 88d7694 2015-09-29T04:53:58.559Z
 */
 (function() {
     var hoardName = typeof HOARD_NAME === 'string' && HOARD_NAME.length > 0 ? HOARD_NAME : 'hoard';
@@ -17,6 +17,7 @@
     var hdUserStores = [];
     var hdUserStoreNames = {};
     var hdIdBase = new Date().valueOf() / 1e3 * Math.random() * 100 * Math.random();
+    var a = {};
     function HoardStore(hoardName, a) {
         var hdsCacheTimes = {};
         var hdsCacheVals = {};
@@ -24,11 +25,13 @@
         var hdsGcSched;
         var hdsHoardId;
         var hdsHoardName;
-        var c = undefined;
+        var b = undefined;
         var hdsOpts = merge_opts(a);
         var hdsSelf = this;
         var hdsStoreId;
         var hdsStoreIdx;
+        var d = c(hdsOpts.storage);
+        var e = [ 'storage' ];
         function hds_event(a, b) {
             var c = {
                 cancelable: true,
@@ -58,14 +61,14 @@
             hdsCacheTimes = {};
         };
         this.del = function hds_del(a) {
-            var d = hds_to_key(a);
-            if (b(hdsCacheVals[d])) {
-                hdsCacheVals[d] = c;
+            var c = hds_to_key(a);
+            if (f(hdsCacheVals[c])) {
+                hdsCacheVals[c] = b;
             }
-            if (b(hdsCacheTimes[d])) {
-                hdsCacheTimes[d] = c;
+            if (f(hdsCacheTimes[c])) {
+                hdsCacheTimes[c] = b;
             }
-            return !b(hdsCacheTimes[d]);
+            return !f(hdsCacheTimes[c]);
         };
         this.expire = function hds_expire(a, b) {
             var c = is_num(b) ? parseInt(b, 10) : null;
@@ -114,26 +117,20 @@
             return true;
         };
         this.get = function hds_get(a) {
-            var d = hds_to_key(a);
-            if (!d) {
+            var c = hds_to_key(a);
+            if (!c) {
                 return;
             }
-            if (b(hdsCacheVals[d])) {
-                if (!b(hdsCacheTimes[d])) {
-                    hdsCacheVals[d] = c;
+            if (f(hdsCacheVals[c])) {
+                if (!f(hdsCacheTimes[c])) {
+                    hdsCacheVals[c] = b;
                     return;
                 }
-                if (stamp() >= hdsCacheTimes[d]) {
+                if (stamp() >= hdsCacheTimes[c]) {
                     this.del(a);
                     return;
                 }
-                if (hdsOpts.storage == 'json') {
-                    return JSON.parse(hdsCacheVals[d]);
-                }
-                if (hdsOpts.storage == 'lzw') {
-                    return JSON.parse(LZString.decompress(hdsCacheVals[d]));
-                }
-                return hdsCacheVals[d];
+                return d.dec(hdsCacheVals[c]);
             }
         };
         this.keys = function hds_keys() {
@@ -176,8 +173,11 @@
             return b;
         };
         this.set_option = function hds_set_option(a, b) {
-            if (!is_str(a) || !hdsOpts.hasOwnProperty(a) || is_empty(b)) {
+            if (!is_str(a) || !hdsOpts.hasOwnProperty(a)) {
                 return;
+            }
+            if (e.indexOf(a) > -1) {
+                throw 'Cannot set read-only option "' + a + '"!!!';
             }
             if (is_obj(hdDefOpts[a]) && is_func(hdDefOpts[a].check)) {
                 hdsOpts[a] = hdDefOpts[a].check(b, hdsOpts[iter].val);
@@ -185,45 +185,33 @@
             }
         };
         this.set = function hds_set(a, b, c) {
-            var d = is_num(c) ? parseInt(c, 10) : hdsOpts.lifeDefault;
-            var e = hds_to_key(a);
-            if (!e) {
+            var e = is_num(c) ? parseInt(c, 10) : hdsOpts.lifeDefault;
+            var f = hds_to_key(a);
+            if (!f) {
                 return;
             }
             if (typeof b === 'undefined') {
                 this.del(a);
             }
-            if (d > hdsOpts.lifeMax) {
-                d = hdsOpts.lifeMax;
+            if (e > hdsOpts.lifeMax) {
+                e = hdsOpts.lifeMax;
             }
-            switch (hdsOpts.storage) {
-              case 'json':
-                hdsCacheVals[e] = JSON.stringify(b);
-                break;
-
-              case 'lzw':
-                hdsCacheVals[e] = LZString.compress(JSON.stringify(b));
-                break;
-
-              default:
-                hdsCacheVals[e] = b;
-                break;
-            }
-            hdsCacheTimes[e] = hds_expy(d);
+            hdsCacheVals[f] = d.enc(b);
+            hdsCacheTimes[f] = hds_expy(e);
             return this.get(a);
         };
         this.get_hoard_id = function hds_hoard_id() {
             return '' + hdsHoardId;
         };
-        this.stringify = function hds_stringify(a, c) {
-            var d = {};
-            var e;
-            for (e in hdsCacheVals) {
-                if (b(hdsCacheVals[e]) && b(hdsCacheTimes[e])) {
-                    d[e] = [ JSON.parse(hdsCacheVals[e]), '' + hdsCacheTimes[e] ];
+        this.stringify = function hds_stringify(a, b) {
+            var c = {};
+            var d;
+            for (d in hdsCacheVals) {
+                if (f(hdsCacheVals[d]) && f(hdsCacheTimes[d])) {
+                    c[d] = [ JSON.parse(hdsCacheVals[d]), '' + hdsCacheTimes[d] ];
                 }
             }
-            return JSON.stringify(d, a, c);
+            return JSON.stringify(c, a, b);
         };
         hdsStoreIdx = hdUserStores.push(this) - 1;
         hdsHoardName = is_str(hoardName) ? '' + hoardName : '';
@@ -264,7 +252,7 @@
         }
         return c;
     }
-    function a(a) {
+    function b(a) {
         if (is_obj(a)) {
             return Object.keys(a).length;
         }
@@ -295,6 +283,22 @@
         d.hoardData = b;
         return document.dispatchEvent(d, b);
     }
+    function c(b) {
+        if (is_str(b) && b in a) {
+            return a[b];
+        }
+    }
+    function d() {
+        var b = [];
+        var c;
+        for (c in a) {
+            if (is_str(c) && is_func(a[c].dec) && is_func(a[c].enc)) {
+                b.push('' + c);
+            }
+        }
+        b.sort();
+        return b;
+    }
     function handle_gc_event(a) {}
     function hoard_bind(a, b) {
         if (hoardParent) {
@@ -313,10 +317,13 @@
     function is_bool(a) {
         return typeof a === 'boolean';
     }
+    function e(a, b) {
+        return Object.prototype.toString.call(a) === '[object Array]' && (is_num(b) ? a.length >= b : true);
+    }
     function is_func(a) {
         return typeof a === 'function';
     }
-    function b(a) {
+    function f(a) {
         return typeof a !== 'undefined' && a !== null;
     }
     function is_num(a, b) {
@@ -333,6 +340,15 @@
     function stamp() {
         return parseInt(new Date().valueOf() / 1e3, 10);
     }
+    hoardCore.add_transform = function b(c, d, e) {
+        if (is_str(c) && is_func(d) && is_func(e)) {
+            a[c] = {
+                dec: e,
+                enc: d
+            };
+            return hoardCore.get_transforms();
+        }
+    };
     hoardCore.all_clear = function hoard_all_clear() {
         return call_store_all('clear');
     };
@@ -354,6 +370,9 @@
     hoardCore.all_set = function hoard_all_set(a, b, c) {
         return call_store_all('set', a, b, c);
     };
+    hoardCore.get_transforms = function a() {
+        return d();
+    };
     hoardCore.store = function hoard_store(a, b) {
         if (!is_str(a)) {
             return hdMainStore;
@@ -363,6 +382,22 @@
         }
         return new HoardStore(a, b);
     };
+    a.json = {
+        dec: function(a) {
+            return JSON.parse(a);
+        },
+        enc: function(a) {
+            return JSON.stringify(a);
+        }
+    };
+    a.plain = {
+        dec: function(a) {
+            return a;
+        },
+        enc: function(a) {
+            return a;
+        }
+    };
     hdDefOpts.prefix = {
         val: '',
         check: function(a, b) {
@@ -370,7 +405,7 @@
         }
     };
     hdDefOpts.lifeMax = {
-        val: 31536e3,
+        val: 31536e3 * 2,
         check: function(a, b) {
             return is_num(a) ? parseInt(a, 10) : is_num(b) ? b : 0;
         }
@@ -389,17 +424,16 @@
     };
     hdDefOpts.storage = {
         val: 'json',
-        check: function(a, b) {
-            var c = ('' + a).toLowerCase().trim();
-            var d = ('' + a).toLowerCase().trim();
-            var e = [ 'json', 'plain', 'lzw' ];
-            if (e.indexOf(c) > -1) {
-                return c;
-            }
-            if (e.indexOf(d) > -1) {
+        check: function(b, c) {
+            var d = ('' + b).trim();
+            var e = is_str(c) ? ('' + c).trim() : 'json';
+            if (d in a) {
                 return d;
             }
-            return 'json';
+            if (e in a) {
+                return e;
+            }
+            throw 'Storage format "' + b + '" does not exist!!!';
         }
     };
     try {
@@ -407,6 +441,13 @@
         hdIsNode = hdIsNode ? process.version : false;
     } catch (a) {
         hdIsNode = false;
+    }
+    if (typeof LZString !== 'undefined' && is_obj(LZString) && is_func(LZString.compress) && is_func(LZString.decompress)) {
+        hoardCore.add_transform('lzw', function a(b) {
+            return LZString.compress(JSON.stringify(b));
+        }, function a(b) {
+            return JSON.parse(LZString.decompress(b));
+        });
     }
     hdMainStore = new HoardStore('main', hoardMainOpts);
     hoard_bind(hoardName, hoardCore);
