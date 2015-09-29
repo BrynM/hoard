@@ -312,14 +312,33 @@ module.exports = function(grunt) {
 		},
 	});
 	gruntCfg.replace.readme.replacements.push({
-		from: new RegExp('(\\t| )*\\* [0-9\\.]+ ?kb unminified[^\\n]*\\n', 'i'),
+		from: new RegExp('(\\t| )*\\* [0-9\\.]+ ?kb lightly minified[^\\n]*\\n', 'i'),
 		to: function () {
 			return '* '+
 				(Math.ceil((fs.statSync(paths.build+'hoard.js').size / 1024) * 100) / 100)+
-				' kb unminified ('+
+				' kb lightly minified ('+
 				fs.statSync(paths.build+'hoard.js').size+
 				' bytes)\n';
 		},
+	});
+	gruntCfg.replace.readme.replacements.push({
+		from: new RegExp('(\\t| )*\\* [0-9\\.]+ ?kb unminified[^\\n]*\\n', 'i'),
+		to: function () {
+			return '* '+
+				(Math.ceil((fs.statSync(paths.srcBase+'hoard.js').size / 1024) * 100) / 100)+
+				' kb unminified ('+
+				fs.statSync(paths.srcBase+'hoard.js').size+
+				' bytes)\n';
+		},
+	});
+
+	gruntCfg.replace.ugly = {};
+	gruntCfg.replace.ugly.src = [paths.build+'hoard.js'];
+	gruntCfg.replace.ugly.dest = paths.build+'hoard.js';
+	gruntCfg.replace.ugly.replacements = [];
+	gruntCfg.replace.ugly.replacements.push({
+		from: /    /g,
+		to: '\t',
 	});
 
 	/* uglify task ************************/
@@ -327,7 +346,10 @@ module.exports = function(grunt) {
 	gruntCfg.uglify = {};
 
 	uglifyOptsMain = _.extend({banner: tpl_banner('hoard.js')}, uglifyDefaults);
-	uglifyOptsMain.beautify = true;
+	uglifyOptsMain.beautify = {
+		'beautify': true,
+		'indent_level': 4,
+	};
 	uglifyOptsMain.mangle = {except: uglifyDistExcept};
 
 	gruntCfg.uglify.main = {};
@@ -373,6 +395,7 @@ module.exports = function(grunt) {
 	grunt.registerTask('default', [
 		'replace:banner',
 		'uglify',
+		'replace:ugly',
 		'replace:readme',
 	]);
 
@@ -381,6 +404,7 @@ module.exports = function(grunt) {
 	grunt.registerTask('dev', [
 		'replace:banner',
 		'uglify',
+		'replace:ugly',
 		'replace:readme',
 		'copy:dev',
 	]);
