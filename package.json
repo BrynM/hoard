@@ -1,6 +1,6 @@
 {
   "name": "Hoard",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "A simple, expiring memory cache implementation for JavaScript",
   "license": "GPL-3.0",
   "repository": "https://github.com/BrynM/hoard.git",

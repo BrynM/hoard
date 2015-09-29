@@ -558,7 +558,7 @@
 	};
 
 	hdDefOpts.gcInterval = {
-		val: 30, // sec
+		val: 180, // sec
 		check: function (v, d) {
 			return is_num(v, true) ? parseInt(v, 10) : (is_num(d) ? d : 0);
 		},

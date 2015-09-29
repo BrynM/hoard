@@ -1,9 +1,9 @@
 /*!
 * Hoard
-* hoard.js v0.0.2
+* hoard.js v0.0.3
 * A simple, expiring memory cache implementation for JavaScript
 * © 2015 Bryn Mosher (https://github.com/BrynM) GPL-3.0
-* Build: BrynM on myakka 0.0.2-1443502438 master 88d7694 2015-09-29T04:53:58.559Z
+* Build: BrynM on myakka 0.0.3-1443509587 0.0.3-docs 4464724 2015-09-29T06:53:07.777Z
 */
 (function() {
     var hoardName = typeof HOARD_NAME === 'string' && HOARD_NAME.length > 0 ? HOARD_NAME : 'hoard';
@@ -417,7 +417,7 @@
         }
     };
     hdDefOpts.gcInterval = {
-        val: 30,
+        val: 180,
         check: function(a, b) {
             return is_num(a, true) ? parseInt(a, 10) : is_num(b) ? b : 0;
         }
