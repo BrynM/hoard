@@ -3,7 +3,7 @@
 * hoard.js v0.0.3
 * A simple, expiring memory cache implementation for JavaScript
 * © 2015 Bryn Mosher (https://github.com/BrynM) GPL-3.0
-* Build: BrynM on myakka 0.0.3-1443512646 0.0.3-docs 228ace8 2015-09-29T07:44:06.107Z
+* Build: BrynM on myakka 0.0.3-1443517016 0.0.3-docs c5eb9a2 2015-09-29T08:56:56.035Z
 */
 (function() {
     var hoardName = typeof HOARD_NAME === 'string' && HOARD_NAME.length > 0 ? HOARD_NAME : 'hoard';
@@ -17,7 +17,7 @@
     var hdUserStores = [];
     var hdUserStoreNames = {};
     var hdIdBase = new Date().valueOf() / 1e3 * Math.random() * 100 * Math.random();
-    var a = {};
+    var valTxforms = {};
     function HoardStore(hoardName, a) {
         var hdsCacheTimes = {};
         var hdsCacheVals = {};
@@ -25,13 +25,13 @@
         var hdsGcSched;
         var hdsHoardId;
         var hdsHoardName;
-        var b = undefined;
+        var hdsNil = undefined;
         var hdsOpts = merge_opts(a);
         var hdsSelf = this;
         var hdsStoreId;
         var hdsStoreIdx;
-        var d = c(hdsOpts.storage);
-        var e = [ 'storage' ];
+        var hdsTxForm = get_transform(hdsOpts.storage);
+        var hdsReadOnlyOpts = [ 'storage' ];
         function hds_event(a, b) {
             var c = {
                 cancelable: true,
@@ -61,14 +61,14 @@
             hdsCacheTimes = {};
         };
         this.del = function hds_del(a) {
-            var c = hds_to_key(a);
-            if (f(hdsCacheVals[c])) {
-                hdsCacheVals[c] = b;
+            var b = hds_to_key(a);
+            if (is_val(hdsCacheVals[b])) {
+                hdsCacheVals[b] = hdsNil;
             }
-            if (f(hdsCacheTimes[c])) {
-                hdsCacheTimes[c] = b;
+            if (is_val(hdsCacheTimes[b])) {
+                hdsCacheTimes[b] = hdsNil;
             }
-            return !f(hdsCacheTimes[c]);
+            return !is_val(hdsCacheTimes[b]);
         };
         this.expire = function hds_expire(a, b) {
             var c = is_num(b) ? parseInt(b, 10) : null;
@@ -117,20 +117,20 @@
             return true;
         };
         this.get = function hds_get(a) {
-            var c = hds_to_key(a);
-            if (!c) {
+            var b = hds_to_key(a);
+            if (!b) {
                 return;
             }
-            if (f(hdsCacheVals[c])) {
-                if (!f(hdsCacheTimes[c])) {
-                    hdsCacheVals[c] = b;
+            if (is_val(hdsCacheVals[b])) {
+                if (!is_val(hdsCacheTimes[b])) {
+                    hdsCacheVals[b] = hdsNil;
                     return;
                 }
-                if (stamp() >= hdsCacheTimes[c]) {
+                if (stamp() >= hdsCacheTimes[b]) {
                     this.del(a);
                     return;
                 }
-                return d.dec(hdsCacheVals[c]);
+                return hdsTxForm.dec(hdsCacheVals[b]);
             }
         };
         this.keys = function hds_keys() {
@@ -176,7 +176,7 @@
             if (!is_str(a) || !hdsOpts.hasOwnProperty(a)) {
                 return;
             }
-            if (e.indexOf(a) > -1) {
+            if (hdsReadOnlyOpts.indexOf(a) > -1) {
                 throw 'Cannot set read-only option "' + a + '"!!!';
             }
             if (is_obj(hdDefOpts[a]) && is_func(hdDefOpts[a].check)) {
@@ -185,19 +185,19 @@
             }
         };
         this.set = function hds_set(a, b, c) {
-            var e = is_num(c) ? parseInt(c, 10) : hdsOpts.lifeDefault;
-            var f = hds_to_key(a);
-            if (!f) {
+            var d = is_num(c) ? parseInt(c, 10) : hdsOpts.lifeDefault;
+            var e = hds_to_key(a);
+            if (!e) {
                 return;
             }
             if (typeof b === 'undefined') {
                 this.del(a);
             }
-            if (e > hdsOpts.lifeMax) {
-                e = hdsOpts.lifeMax;
+            if (d > hdsOpts.lifeMax) {
+                d = hdsOpts.lifeMax;
             }
-            hdsCacheVals[f] = d.enc(b);
-            hdsCacheTimes[f] = hds_expy(e);
+            hdsCacheVals[e] = hdsTxForm.enc(b);
+            hdsCacheTimes[e] = hds_expy(d);
             return this.get(a);
         };
         this.get_hoard_id = function hds_hoard_id() {
@@ -207,7 +207,7 @@
             var c = {};
             var d;
             for (d in hdsCacheVals) {
-                if (f(hdsCacheVals[d]) && f(hdsCacheTimes[d])) {
+                if (is_val(hdsCacheVals[d]) && is_val(hdsCacheTimes[d])) {
                     c[d] = [ JSON.parse(hdsCacheVals[d]), '' + hdsCacheTimes[d] ];
                 }
             }
@@ -252,7 +252,7 @@
         }
         return c;
     }
-    function b(a) {
+    function count(a) {
         if (is_obj(a)) {
             return Object.keys(a).length;
         }
@@ -283,21 +283,21 @@
         d.hoardData = b;
         return document.dispatchEvent(d, b);
     }
-    function c(b) {
-        if (is_str(b) && b in a) {
-            return a[b];
+    function get_transform(a) {
+        if (is_str(a) && a in valTxforms) {
+            return valTxforms[a];
         }
     }
-    function d() {
-        var b = [];
-        var c;
-        for (c in a) {
-            if (is_str(c) && is_func(a[c].dec) && is_func(a[c].enc)) {
-                b.push('' + c);
+    function get_transform_list() {
+        var a = [];
+        var b;
+        for (b in valTxforms) {
+            if (is_str(b) && is_func(valTxforms[b].dec) && is_func(valTxforms[b].enc)) {
+                a.push('' + b);
             }
         }
-        b.sort();
-        return b;
+        a.sort();
+        return a;
     }
     function handle_gc_event(a) {}
     function hoard_bind(a, b) {
@@ -314,17 +314,14 @@
             return window[a];
         }
     }
+    function is_arr(a, b) {
+        return Object.prototype.toString.call(a) === '[object Array]' && (is_num(b) ? a.length >= b : true);
+    }
     function is_bool(a) {
         return typeof a === 'boolean';
     }
-    function e(a, b) {
-        return Object.prototype.toString.call(a) === '[object Array]' && (is_num(b) ? a.length >= b : true);
-    }
     function is_func(a) {
         return typeof a === 'function';
-    }
-    function f(a) {
-        return typeof a !== 'undefined' && a !== null;
     }
     function is_num(a, b) {
         b = typeof b === 'undefined' ? true : false;
@@ -337,7 +334,10 @@
         b = typeof b === 'undefined' ? true : false;
         return typeof a === 'string' && (!b || a.length > 0);
     }
-    function g(a) {
+    function is_val(a) {
+        return typeof a !== 'undefined' && a !== null;
+    }
+    function kill_store(a) {
         var b;
         if (is_str(a)) {
             if (a === 'main') {
@@ -354,51 +354,51 @@
     function stamp() {
         return parseInt(new Date().valueOf() / 1e3, 10);
     }
-    hoardCore.add_transform = function b(c, d, e) {
-        if (is_str(c) && is_func(d) && is_func(e)) {
-            a[c] = {
-                dec: e,
-                enc: d
+    hoardCore.add_transform = function hoard_add_transform(a, b, c) {
+        if (is_str(a) && is_func(b) && is_func(c)) {
+            valTxforms[a] = {
+                dec: c,
+                enc: b
             };
             return hoardCore.get_transforms();
         }
     };
-    hoardCore.clear_all = function a() {
+    hoardCore.clear_all = function hoard_clear_all() {
         return call_store_all('clear');
     };
-    hoardCore.del_all = function a(b) {
-        return call_store_all('del', b);
+    hoardCore.del_all = function hoard_del_all(a) {
+        return call_store_all('del', a);
     };
-    hoardCore.expire_all = function a(b, c) {
-        return call_store_all('expire', b, c);
+    hoardCore.expire_all = function hoard_expire_all(a, b) {
+        return call_store_all('expire', a, b);
     };
-    hoardCore.expire_all_at = function a(b, c) {
-        return call_store_all('expire_at', b, c);
+    hoardCore.expire_all_at = function hoard_expire_all_at(a, b) {
+        return call_store_all('expire_at', a, b);
     };
-    hoardCore.get_all = function a(b) {
-        return call_store_all('get', b);
+    hoardCore.get_all = function hoard_get_all(a) {
+        return call_store_all('get', a);
     };
-    hoardCore.get_transforms = function a() {
-        return d();
+    hoardCore.get_transforms = function hoard_get_transforms() {
+        return get_transform_list();
     };
-    hoardCore.keys_all = function a() {
+    hoardCore.keys_all = function hoard_keys_all() {
         return call_store_all('keys');
     };
-    hoardCore.set_all = function a(b, c, d) {
-        return call_store_all('set', b, c, d);
+    hoardCore.set_all = function hoard_set_all(a, b, c) {
+        return call_store_all('set', a, b, c);
     };
-    hoardCore.kill = function a(b) {
-        return g(b);
+    hoardCore.kill = function hoard_kill(a) {
+        return kill_store(a);
     };
-    hoardCore.kill_all = function a(b) {
-        var c = {};
+    hoardCore.kill_all = function hoard_kill_all(a) {
+        var b = {};
         for (iter in hdUserStoreNames) {
             if (!hdUserStoreNames.hasOwnProperty(iter) || iter === 'main') {
                 continue;
             }
-            c[iter] = g(iter);
+            b[iter] = kill_store(iter);
         }
-        return c;
+        return b;
     };
     hoardCore.store = function hoard_store(a, b) {
         if (!is_str(a)) {
@@ -409,7 +409,7 @@
         }
         return new HoardStore(a, b);
     };
-    a.json = {
+    valTxforms.json = {
         dec: function(a) {
             return JSON.parse(a);
         },
@@ -417,7 +417,7 @@
             return JSON.stringify(a);
         }
     };
-    a.plain = {
+    valTxforms.plain = {
         dec: function(a) {
             return a;
         },
@@ -451,16 +451,16 @@
     };
     hdDefOpts.storage = {
         val: 'json',
-        check: function(b, c) {
-            var d = ('' + b).trim();
-            var e = is_str(c) ? ('' + c).trim() : 'json';
-            if (d in a) {
+        check: function(a, b) {
+            var c = ('' + a).trim();
+            var d = is_str(b) ? ('' + b).trim() : 'json';
+            if (c in valTxforms) {
+                return c;
+            }
+            if (d in valTxforms) {
                 return d;
             }
-            if (e in a) {
-                return e;
-            }
-            throw 'Storage format "' + b + '" does not exist!!!';
+            throw 'Storage format "' + a + '" does not exist!!!';
         }
     };
     try {

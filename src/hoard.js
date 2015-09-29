@@ -420,21 +420,16 @@
 		}
 	}
 
-	function is_bool (bool) {
-		return (typeof bool === 'boolean');
-	}
-
 	function is_arr (arr, min) {
 		return Object.prototype.toString.call(arr) === '[object Array]' && (is_num(min) ? arr.length >= min : true);
 	}
 
-	function is_func (func) {
-		return (typeof func === 'function');
+	function is_bool (bool) {
+		return (typeof bool === 'boolean');
 	}
 
-	function is_val (val) {
-		return typeof val !== 'undefined' &&
-			val !== null;
+	function is_func (func) {
+		return (typeof func === 'function');
 	}
 
 	function is_num (num, gtZero) {
@@ -451,6 +446,11 @@
 		gtZero = typeof gtZero === 'undefined' ? true : false;
 
 		return (typeof str === 'string' && (!gtZero || str.length > 0));
+	}
+
+	function is_val (val) {
+		return typeof val !== 'undefined' &&
+			val !== null;
 	}
 
 	function kill_store (store) {
@@ -526,7 +526,7 @@
 		return kill_store(key);
 	};
 
-	hoardCore.kill_all = function hoard_kill (key) {
+	hoardCore.kill_all = function hoard_kill_all (key) {
 		var ret = {};
 
 		for (iter in hdUserStoreNames) {
