@@ -3,7 +3,7 @@
 * hoard.js v0.0.3
 * A simple, expiring memory cache implementation for JavaScript
 * © 2015 Bryn Mosher (https://github.com/BrynM) GPL-3.0
-* Build: BrynM on myakka 0.0.3-1443511246 0.0.3-docs 8eb6d1a 2015-09-29T07:20:46.707Z
+* Build: BrynM on myakka 0.0.3-1443512646 0.0.3-docs 228ace8 2015-09-29T07:44:06.107Z
 */
 (function() {
     var hoardName = typeof HOARD_NAME === 'string' && HOARD_NAME.length > 0 ? HOARD_NAME : 'hoard';
@@ -363,29 +363,29 @@
             return hoardCore.get_transforms();
         }
     };
-    hoardCore.all_clear = function hoard_all_clear() {
+    hoardCore.clear_all = function a() {
         return call_store_all('clear');
     };
-    hoardCore.all_del = function hoard_all_del(a) {
-        return call_store_all('del', a);
+    hoardCore.del_all = function a(b) {
+        return call_store_all('del', b);
     };
-    hoardCore.all_expire = function hoard_all_expire(a, b) {
-        return call_store_all('expire', a, b);
+    hoardCore.expire_all = function a(b, c) {
+        return call_store_all('expire', b, c);
     };
-    hoardCore.all_expire_at = function hoard_all_expire_at(a, b) {
-        return call_store_all('expire_at', a, b);
+    hoardCore.expire_all_at = function a(b, c) {
+        return call_store_all('expire_at', b, c);
     };
-    hoardCore.all_get = function hoard_all_get(a) {
-        return call_store_all('get', a);
-    };
-    hoardCore.all_keys = function hoard_all_keys() {
-        return call_store_all('keys');
-    };
-    hoardCore.all_set = function hoard_all_set(a, b, c) {
-        return call_store_all('set', a, b, c);
+    hoardCore.get_all = function a(b) {
+        return call_store_all('get', b);
     };
     hoardCore.get_transforms = function a() {
         return d();
+    };
+    hoardCore.keys_all = function a() {
+        return call_store_all('keys');
+    };
+    hoardCore.set_all = function a(b, c, d) {
+        return call_store_all('set', b, c, d);
     };
     hoardCore.kill = function a(b) {
         return g(b);

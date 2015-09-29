@@ -490,36 +490,36 @@
 		}
 	};
 
-	hoardCore.all_clear = function hoard_all_clear () {
+	hoardCore.clear_all = function hoard_clear_all () {
 		return call_store_all('clear');
 	};
 
-	hoardCore.all_del = function hoard_all_del (key) {
+	hoardCore.del_all = function hoard_del_all (key) {
 		return call_store_all('del', key);
 	};
 
-	hoardCore.all_expire = function hoard_all_expire (key, life) {
+	hoardCore.expire_all = function hoard_expire_all (key, life) {
 		return call_store_all('expire', key, life);
 	};
 
-	hoardCore.all_expire_at = function hoard_all_expire_at (key, epoch) {
+	hoardCore.expire_all_at = function hoard_expire_all_at (key, epoch) {
 		return call_store_all('expire_at', key, epoch);
 	};
 
-	hoardCore.all_get = function hoard_all_get (key) {
+	hoardCore.get_all = function hoard_get_all (key) {
 		return call_store_all('get', key);
-	};
-
-	hoardCore.all_keys = function hoard_all_keys () {
-		return call_store_all('keys');
-	};
-
-	hoardCore.all_set = function hoard_all_set (key, val, life) {
-		return call_store_all('set', key, val, life);
 	};
 
 	hoardCore.get_transforms = function hoard_get_transforms () {
 		return get_transform_list();
+	};
+
+	hoardCore.keys_all = function hoard_keys_all () {
+		return call_store_all('keys');
+	};
+
+	hoardCore.set_all = function hoard_set_all (key, val, life) {
+		return call_store_all('set', key, val, life);
 	};
 
 	hoardCore.kill = function hoard_kill (key) {

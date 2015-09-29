@@ -332,9 +332,9 @@
 			);
 
 			assert.strictEqual(
-				typeof hoardThing.all_set(setAllKey, setAllVal),
+				typeof hoardThing.set_all(setAllKey, setAllVal),
 				'object',
-				prefix+'.all_set("'+setAllKey+'", "'+setAllVal+'")'
+				prefix+'.set_all("'+setAllKey+'", "'+setAllVal+'")'
 			);
 			assert.strictEqual(
 				hoardThing.store().get(setAllKey),
@@ -370,27 +370,27 @@
 			);
 
 			assert.strictEqual(
-				typeof hoardThing.all_set(getAllKey, getAllVal),
+				typeof hoardThing.set_all(getAllKey, getAllVal),
 				'object',
-				prefix+'.all_set("'+getAllKey+'", "'+getAllVal+'")'
+				prefix+'.set_all("'+getAllKey+'", "'+getAllVal+'")'
 			);
 
-			getRes = hoardThing.all_get(getAllKey);
+			getRes = hoardThing.get_all(getAllKey);
 
 			assert.strictEqual(
 				typeof getRes,
 				'object',
-				prefix+'.all_get("'+getAllKey+'") is Object'
+				prefix+'.get_all("'+getAllKey+'") is Object'
 			);
 			assert.strictEqual(
 				getRes['main'],
 				getAllVal,
-				prefix+'.all_get("'+getAllKey+'")["main"] === "'+getAllVal+'"'
+				prefix+'.get_all("'+getAllKey+'")["main"] === "'+getAllVal+'"'
 			);
 			assert.strictEqual(
 				getRes[sNameGetAll],
 				getAllVal,
-				prefix+'.all_get("'+getAllKey+'")["'+sNameGetAll+'"] === "'+getAllVal+'"'
+				prefix+'.get_all("'+getAllKey+'")["'+sNameGetAll+'"] === "'+getAllVal+'"'
 			);
 			assert.strictEqual(
 				typeof hoardThing.kill(sNameGetAll),

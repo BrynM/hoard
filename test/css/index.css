@@ -34,6 +34,9 @@ body {
 	font-style: italic;
 	padding: 0 3px;
 }
+#hdContent #readme p {
+	margin: 5px 10px 10px 10px;
+}
 #hdContent #readme h1 {
 	margin: 0px;
 }
@@ -53,13 +56,19 @@ body {
 }
 #hdContent #readme table {
 	width: 100%;
+	border-collapse: collapse;
 }
 #hdContent #readme table tr td {
 	vertical-align: baseline;
+	padding: 0 5px;
 }
 #hdContent #readme table tr td:first-child {
 	color: #169A15;
-	width: 235px;
+	width: 265px;
+	font-size: 80%;
+}
+#hdContent #readme table tr th:first-child {
+	padding-right: 5px;
 }
 #hdContent #readme table tr td:last-child {
 	font-size: 80%;
@@ -67,15 +76,26 @@ body {
 #hdContent #readme table tr td:nth-child(2) {
 	font-family: "Lucida Console", Courier, monospace;
 	color: #98782d;
-	padding: 0 5px;
 }
 #hdContent #readme table tbody tr:nth-child(odd) {
 	background-color: rgba(152, 120, 45, 0.1);
 }
 #hdContent #readme table tbody tr:nth-child(even) {
+	background-color: rgba(255, 252, 232, .5);
 }
 #hdContent #readme table tbody tr:hover {
 	background-color: rgba(248, 245, 122, 0.45);
+}
+
+#hdContent #readme table thead tr th,
+#hdContent #readme table tbody tr td {
+	border-bottom: 1px solid rgba(99, 77, 27, 0.15);
+}
+#hdContent #readme table tbody tr td {
+	border-left: 1px solid rgba(99, 77, 27, 0.15);
+}
+#hdContent #readme table tbody tr td:last-child {
+	border-right: 1px solid rgba(99, 77, 27, 0.15);
 }
 #hdContent #qunit,
 #hdContent #runtests {
@@ -84,7 +104,6 @@ body {
 #hdContent #qunit #qunit-header a {
 	color: #faf5d4;
 	background-color: #232323;
-
 }
 #hdContent #qunit-banner {
 	background: linear-gradient(135deg,  #98782d 40%, #E6E472 50%, #98782d 60%);
