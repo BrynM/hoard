@@ -42,7 +42,7 @@ body {
 }
 #hdContent #readme code {
 	font-family: "Lucida Console", Courier, monospace;
-	font-size: 75%;
+	font-size: .75em;
 }
 #hdContent #readme pre {
 	width: 95%;
@@ -58,20 +58,23 @@ body {
 	width: 100%;
 	border-collapse: collapse;
 }
+#hdContent #readme table tr th,
 #hdContent #readme table tr td {
-	vertical-align: baseline;
+	vertical-align: top;
 	padding: 0 5px;
+}
+#hdContent #readme table tr td {
+	font-size: .85em;
 }
 #hdContent #readme table tr td:first-child {
 	color: #169A15;
-	width: 265px;
-	font-size: 80%;
+	white-space: nowrap;
 }
 #hdContent #readme table tr th:first-child {
 	padding-right: 5px;
 }
 #hdContent #readme table tr td:last-child {
-	font-size: 80%;
+	font-size: 1em;
 }
 #hdContent #readme table tr td:nth-child(2) {
 	font-family: "Lucida Console", Courier, monospace;
@@ -86,7 +89,6 @@ body {
 #hdContent #readme table tbody tr:hover {
 	background-color: rgba(248, 245, 122, 0.45);
 }
-
 #hdContent #readme table thead tr th,
 #hdContent #readme table tbody tr td {
 	border-bottom: 1px solid rgba(99, 77, 27, 0.15);
@@ -183,6 +185,6 @@ body {
 	color: #EE5757;
 }
 p.note {
-	font-size: 80%;
+	font-size: .8em;
 	margin: 3px 0px;
 }

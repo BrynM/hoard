@@ -16,19 +16,23 @@ Hoard is a simple memory based cache meant to be unsed interally by JavaScript c
 
 # Hoard Cache Stores
 
-Hoard keeps the cached data in an object called a store - properly, a `HoardStore` object.
+Hoard keeps the cached data in objects called a stores - properly, `HoardStore` objects.
 Each store is a discreet cache space with its own keys, values, garbage collection, etc..
 
 Hoard itself consists of two parts.
 The first is the `ü()` function, which is used to interact with individual stores.
 The second is the `hoard` object used for controlling stores individually or wholesale.
 
-# Stores and the `ü(name, options)` Function
+# Stores and the `ü()` Function
 
 The `ü()` function is a handy way to retrieve a store to interact with.
 It is an alias to `hoard.store()`, so anything you can do with `ü()` can be done with `hoard.store()` (documented later).
 
+Like `hoard.store()`, `ü()` takes two arguments: `ü(name, options)`.
+
 When called with empty or non-string arguments, `ü()` will return the "main", default `HoardStore` object.
+The default store is created using the default options (more on how to change those is toward the end of this document).
+
 Stores can be created by passing a string name and optional arguments.
 
     // get the default store's name
@@ -38,7 +42,7 @@ Stores can be created by passing a string name and optional arguments.
     var fooName = ü("foo").get_name(); // "foo"
 
     // create a store named "bar" and set a 60 second default key life, then get its name
-    var fooName = ü("bar", {lifeDefault: 60}).get_name(); // "bar"
+    var barName = ü("bar", {lifeDefault: 60}).get_name(); // "bar"
 
 ## `HoardStore` Members
 
@@ -60,17 +64,30 @@ Stores can be created by passing a string name and optional arguments.
 |`HoardStore.set(key, val, life)`|`mixed`|Set the value of a stored cache key with optional lifetime in seconds.|
 |`HoardStore.set_option(opt, val)`|`mixed`|Set one of the options for the store. The options are described further below.|
 |`HoardStore.storeId`|-|Initial index of the store. This should not be trusted and `HoardStore.get_store_id()` should be used instead. It's merely for console/visual ease.|
-|`HoardStore.stringify()`|`String`|Return a JSON representation of all stored keys. **This may take a while for large stores.**|
+|`HoardStore.stringify()`|`String`|Return a JSON representation of all stored keys. Each key will include both value and expiration. **This may take a while for large stores.**|
 
 ## `HoardStore` Options
 
-|Option|Use|
-|-----:|:-----|
-|`gcInterval`| |
-|`lifeDefault`| |
-|`lifeMax`| |
-|`prefix`| |
-|`storage`| |
+Options are per-store and are primarily set when the store is created. 
+
+|Option|Type|Default|Use|
+|-----:|:-----:|:-----:|:-----|
+|`gcInterval`|`Number`|180|Integer time in seconds between garbage collection attempts.|
+|`lifeDefault`|`Number`|300|Default integer life in seconds for cached items within the store.|
+|`lifeMax`|`Number`|63072000|Integer maximum life in seconds. The default is 2 years. I haven't really tested a lot of long-term attempts at storage with Hoard, but I wanted to put a configurable upper limit somewhere.|
+|`prefix`|`String`|""|If this is a non-empty string, it will be prefixed to all key names in the store. It does not need to be added when calling `HoardStore.get()` or `HoardStore.set()`, but needs to be accounted for with methods that retrieve key names such as `HoardStore.keys()`.|
+|`storage`|`String`|"json"|**Read only.** The name of the storage transform used. This option needs to be set at store creation. More information about storage transforms can be found further in this document.|
+
+## Why "ü"?
+
+So why a diacritic letter u? Why the umlaut?
+It makes for nice shorthand and isn't much used in English, my native language.
+The cool dollar sign was already taken, so I went for a symbol that was easy to remember in any OS.
+On OSX, it's pressing [OPTION]+[U], then pressing [U].
+On Windows, it's typing [0]-[2]-[5]-[2] on the number pad while holding [ALT].
+On *nix, it's typing [U]-[F]-[C] while holding [CTRL]+[SHIFT].
+
+If you don't like it, there's functionality to assign it to anything you [wish](http://i.imgur.com/GVUAHnZ.gifv).
 
 # The `hoard` Object
 
@@ -95,18 +112,45 @@ Those that do will return an object containing `store-name:result` key value pai
 
 # Storage Transforms
 
-Normally, Hoard stores each value as a JSON string.
+## "json"
+
+By default, Hoard stores each value as a JSON string.
+JSON is the most efficient storage mechanism because it's very fast in most modern JS environments.
+
+## lz-string Support
+
+
+## "plain" (and why you probably shouldn't use it)
+
+## Adding your own Storage Transforms
+
+https://github.com/dankogai/js-base64
+
+    function hoard_base64_encode (inp) {
+        return Base64.encode(JSON.stringify(inp));
+    }
+
+    function hoard_base64_decode (inp) {
+        return JSON.parse(Base64.decode(inp));
+    }
+
+    hoard.add_transform('base64', hoard_base64_encode, hoard_base64_decode);
+    // returns something like ['base64', 'json', 'plain']
 
 # Customizing the names of `hoard`, `ü()` and other fun...
 
-The names of both the `hoard` object and the `ü()` function, along with a couple of other options, can be customized before loading the Hoard JavaScript source.
+The names of both the `hoard` object and the `ü()` function can be customized along with a couple of other items.
+To customize them, set any of the variables below before loading the Hoard JavaScript source.
 
-|Variable|Use|
-|-----:|:-----|
-|`HOARD_CHAR`| |
-|`HOARD_MAIN_OPTS`| |
-|`HOARD_NAME`| |
-|`HOARD_PARENT`| |
+The customization functionality is used on the development testing page to load multiple copies of Hoard at once.
+Should you open a console on that page you may notice that `hoardDist`, `üDist()`, `hoardMin`, and `üMin()` may exist along side `hoard` and `ü()`.
+
+|Variable|Type|Default|Use|
+|-----:|:-----:|:-----:|:-----|
+|`HOARD_CHAR`|`String`|`"ü"`|Set the character(s) used for the `ü()` function. For example setting `HOARD_CHAR` to "P" would instead bind the `ü()` function to `P()`.|
+|`HOARD_MAIN_OPTS`|`Object`|`Object`|If this object exists, it will be used for the default `HoardStore` options.|
+|`HOARD_NAME`|`String`|`"hoard"`|Set the name of the `hoard` object. For example, setting `HOARD_NAME` to "penelope" would instead bind the `hoard` object to `penelope` and thus `hoard.store()` would be `penelope.store()`.|
+|`HOARD_PARENT`|`Object`|`Object`|Sepcify a different global object for both `hoard` and the `ü()` function to be members of. In a browser, this is normally `window` and in node.js it it usually `module.exports`.|
 
 
 # Limitations

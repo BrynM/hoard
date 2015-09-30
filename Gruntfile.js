@@ -279,6 +279,11 @@ module.exports = function(grunt) {
 		src: 'node_modules/bpmv/dist/bpmv.min.js',
 		dest: paths.testBase+'js/bpmv.min.js',
 	});
+	gruntCfg.copy.dev.files.push({
+		expand: false,
+		src: 'node_modules/js-base64/base64.min.js',
+		dest: paths.testBase+'js/base64.min.js',
+	});
 
 	/* replace task ***********************/
 

@@ -405,10 +405,6 @@
 		var iter;
 
 		for (iter = 0; iter < txForms.length; iter++) {
-			if (txForms[iter] === 'plain') {
-				continue;
-			}
-
 			run_tests_perf_ü_sequential(
 				unit,
 				txForms[iter]+' '+prefix,
@@ -740,6 +736,18 @@
 	};
 
 	/* Run ********************************/
+
+	if (typeof Base64 === 'object' && typeof Base64.encode === 'function' && typeof Base64.decode === 'function') {
+		function hoard_base64_encode (inp) {
+			return Base64.encode(JSON.stringify(inp));
+		}
+
+		function hoard_base64_decode (inp) {
+			return JSON.parse(Base64.decode(inp));
+		}
+
+		console.log('Adding base64 transform', hoard.add_transform('base64', hoard_base64_encode, hoard_base64_decode));
+	}
 
 	QUnit.config.autostart = false;
 	QUnit.config.scrolltop = false;
