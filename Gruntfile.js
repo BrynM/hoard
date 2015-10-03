@@ -189,7 +189,7 @@ module.exports = function(grunt) {
 
 		txt = [
 			'* '+pkg.description,
-			'* \u00A9 '+dateObj.getFullYear()+' '+pkg.author+' '+pkg.license,
+			'* © '+dateObj.getFullYear()+' '+pkg.author+' '+pkg.license,
 			'* Build: '+gitUser+' on '+os.hostname()+' '+pkg.version+'-'+timestamp+' '+branch+' '+revision+' '+dateObj.toISOString(),
 			'*/\n',
 		];
@@ -284,19 +284,23 @@ module.exports = function(grunt) {
 		src: 'node_modules/js-base64/base64.min.js',
 		dest: paths.testBase+'js/base64.min.js',
 	});
+	gruntCfg.copy.dev.files.push({
+		expand: false,
+		src: 'package.json',
+		dest: paths.testBase+'package.json',
+	});
+
+	gruntCfg.copy.readme = {};
+	gruntCfg.copy.readme.files = [];
+	gruntCfg.copy.readme.files.push({
+		expand: false,
+		src: 'README.md',
+		dest: paths.testBase+'README.md',
+	});
 
 	/* replace task ***********************/
 
 	gruntCfg.replace = {};
-
-	gruntCfg.replace.banner = {};
-	gruntCfg.replace.banner.src = [paths.base+'src/hoard.js'];
-	gruntCfg.replace.banner.dest = paths.build+'hoard.js';
-	gruntCfg.replace.banner.replacements = [];
-	gruntCfg.replace.banner.replacements.push({
-		from: /\/\*\s*build heading replaced here\s*\*\//i,
-		to: tpl_banner('hoard.js').trim(),
-	});
 
 	gruntCfg.replace.readme = {};
 	gruntCfg.replace.readme.src = [paths.base+'README.md'];
@@ -385,6 +389,17 @@ module.exports = function(grunt) {
 		atBegin: true,
 	};
 
+	gruntCfg.watch.replace = {};
+	gruntCfg.watch.replace.files = [
+		paths.base+'README.md',
+	];
+	gruntCfg.watch.replace.tasks = [
+		'readme',
+	];
+	gruntCfg.watch.replace.options = {
+		atBegin: true,
+	};
+
 	/* run all the things! ****************/
 
 	// set config
@@ -398,7 +413,6 @@ module.exports = function(grunt) {
 
 	// Default task(s).
 	grunt.registerTask('default', [
-		'replace:banner',
 		'uglify',
 		'replace:ugly',
 		'replace:readme',
@@ -407,11 +421,16 @@ module.exports = function(grunt) {
 	// det task
 	// used with watch
 	grunt.registerTask('dev', [
-		'replace:banner',
 		'uglify',
 		'replace:ugly',
 		'replace:readme',
 		'copy:dev',
+	]);
+
+	// det task
+	// used with watch
+	grunt.registerTask('readme', [
+		'copy:readme',
 	]);
 
 };

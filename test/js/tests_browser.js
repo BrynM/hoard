@@ -144,7 +144,7 @@
 
 	function pop_ui () {
 		$.ajax({
-			url: '../../README.md',
+			url: '/README.md',
 			//async: true,
 			dataType: 'text',
 			headers: {
@@ -790,7 +790,7 @@
 	});
 
 	$.ajax({
-		url: '../../package.json',
+		url: '/package.json',
 		dataType: 'json',
 		cache: true,
 		error: err_pkg,

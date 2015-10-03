@@ -11,8 +11,8 @@ EE5757 rgba(238, 87, 87, 1)
 169A15 rgba(22, 154, 21, 1)
 */
 body {
-	background: #faf5d4;
 	font-size: 1em;
+	background: #faf5d4 url("/img/hoard_bg_4pct_512.png") center 100px no-repeat fixed;
 }
 
 #hdContent h1 {

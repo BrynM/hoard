@@ -2,16 +2,3 @@
 *.sublime-workspace
 node_modules/*
 npm-debug.log
-test/css/jquery*.css
-test/css/qunit.css
-test/js/base64.min.js
-test/js/bpmv.min.js
-test/js/builds/*
-test/js/jquery*.js
-test/js/lz-string.min.js
-test/js/markdown.js
-test/js/qunit-assert-compare.js
-test/js/qunit.js
-test/js/underscore-min.js
-test/package.json
-test/README.md
