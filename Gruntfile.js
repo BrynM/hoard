@@ -66,12 +66,15 @@ module.exports = function(grunt) {
 	var uglifyDistExcept = [
 		'call_store',
 		'call_store_all',
+		'count',
 		'dispatchEvent',
 		'document',
 		'Event',
 		'event_bind',
 		'event_fire',
 		'exports',
+		'get_transform',
+		'get_transform_list',
 		'handle_gc_event',
 		'hdDefOpts',
 		'hdIdBase',
@@ -101,25 +104,32 @@ module.exports = function(grunt) {
 		'hdsGcSched',
 		'hdsHoardId',
 		'hdsHoardName',
+		'hdsNil',
 		'hdsOpts',
+		'hdsReadOnlyOpts',
 		'hdsSelf',
 		'hdsStoreId',
 		'hdsStoreIdx',
+		'hdsTxForm',
 		'hdUserStoreNames',
 		'hdUserStores',
-		'hoard_all_clear',
-		'hoard_all_del',
-		'hoard_all_expire',
-		'hoard_all_expire_at',
-		'hoard_all_get',
-		'hoard_all_keys',
-		'hoard_all_life',
-		'hoard_all_set',
+		'hoard_add_transform',
 		'hoard_bind',
 		'HOARD_CHAR',
+		'hoard_clear_all',
+		'hoard_del_all',
+		'hoard_expire_all',
+		'hoard_expire_all_at',
+		'hoard_get_all',
+		'hoard_get_transforms',
+		'hoard_keys_all',
+		'hoard_kill',
+		'hoard_kill_all',
+		'hoard_life_all',
 		'HOARD_MAIN_OPTS',
 		'HOARD_NAME',
 		'HOARD_PARENT',
+		'hoard_set_all',
 		'hoard_store',
 		'hoardChar',
 		'hoardCore',
@@ -127,14 +137,18 @@ module.exports = function(grunt) {
 		'hoardName',
 		'hoardParent',
 		'HoardStore',
+		'is_arr',
 		'is_bool',
 		'is_func',
 		'is_num',
 		'is_obj',
 		'is_str',
+		'is_val',
+		'kill_store',
 		'merge_opts',
 		'module',
 		'stamp',
+		'valTxforms',
 		'window',
 	];
 	var uglifyMinExcept = [
@@ -175,25 +189,12 @@ module.exports = function(grunt) {
 
 		txt = [
 			'* '+pkg.description,
-			'* \u00A9 '+dateObj.getFullYear()+' '+pkg.author+' '+pkg.license,
+			'* © '+dateObj.getFullYear()+' '+pkg.author+' '+pkg.license,
 			'* Build: '+gitUser+' on '+os.hostname()+' '+pkg.version+'-'+timestamp+' '+branch+' '+revision+' '+dateObj.toISOString(),
 			'*/\n',
 		];
 
 		return pre.join('\n')+'\n'+txt.join('\n');
-	}
-
-	function tpl_lz_string () {
-		return [
-			'/*!',
-			'* lz-string',
-			'* \u00A9 pieroxy',
-			'* WTFPL – Do What the Fuck You Want to Public License',
-			'* http://pieroxy.net/blog/pages/lz-string/index.html',
-			'* https://github.com/pieroxy/lz-string',
-			'* lz-string.min.js',
-			'*/\n',
-		].join('\n');
 	}
 
 	/* project configuration **************/
@@ -278,19 +279,28 @@ module.exports = function(grunt) {
 		src: 'node_modules/bpmv/dist/bpmv.min.js',
 		dest: paths.testBase+'js/bpmv.min.js',
 	});
+	gruntCfg.copy.dev.files.push({
+		expand: false,
+		src: 'node_modules/js-base64/base64.min.js',
+		dest: paths.testBase+'js/base64.min.js',
+	});
+	gruntCfg.copy.dev.files.push({
+		expand: false,
+		src: 'package.json',
+		dest: paths.testBase+'package.json',
+	});
+
+	gruntCfg.copy.readme = {};
+	gruntCfg.copy.readme.files = [];
+	gruntCfg.copy.readme.files.push({
+		expand: false,
+		src: 'README.md',
+		dest: paths.testBase+'README.md',
+	});
 
 	/* replace task ***********************/
 
 	gruntCfg.replace = {};
-
-	gruntCfg.replace.banner = {};
-	gruntCfg.replace.banner.src = [paths.base+'src/hoard.js'];
-	gruntCfg.replace.banner.dest = paths.build+'hoard.js';
-	gruntCfg.replace.banner.replacements = [];
-	gruntCfg.replace.banner.replacements.push({
-		from: /\/\*\s*build heading replaced here\s*\*\//i,
-		to: tpl_banner('hoard.js').trim(),
-	});
 
 	gruntCfg.replace.readme = {};
 	gruntCfg.replace.readme.src = [paths.base+'README.md'];
@@ -311,14 +321,33 @@ module.exports = function(grunt) {
 		},
 	});
 	gruntCfg.replace.readme.replacements.push({
-		from: new RegExp('(\\t| )*\\* [0-9\\.]+ ?kb unminified[^\\n]*\\n', 'i'),
+		from: new RegExp('(\\t| )*\\* [0-9\\.]+ ?kb lightly minified[^\\n]*\\n', 'i'),
 		to: function () {
 			return '* '+
 				(Math.ceil((fs.statSync(paths.build+'hoard.js').size / 1024) * 100) / 100)+
-				' kb unminified ('+
+				' kb lightly minified ('+
 				fs.statSync(paths.build+'hoard.js').size+
 				' bytes)\n';
 		},
+	});
+	gruntCfg.replace.readme.replacements.push({
+		from: new RegExp('(\\t| )*\\* [0-9\\.]+ ?kb unminified[^\\n]*\\n', 'i'),
+		to: function () {
+			return '* '+
+				(Math.ceil((fs.statSync(paths.srcBase+'hoard.js').size / 1024) * 100) / 100)+
+				' kb unminified ('+
+				fs.statSync(paths.srcBase+'hoard.js').size+
+				' bytes)\n';
+		},
+	});
+
+	gruntCfg.replace.ugly = {};
+	gruntCfg.replace.ugly.src = [paths.build+'hoard.js'];
+	gruntCfg.replace.ugly.dest = paths.build+'hoard.js';
+	gruntCfg.replace.ugly.replacements = [];
+	gruntCfg.replace.ugly.replacements.push({
+		from: /    /g,
+		to: '\t',
 	});
 
 	/* uglify task ************************/
@@ -326,7 +355,10 @@ module.exports = function(grunt) {
 	gruntCfg.uglify = {};
 
 	uglifyOptsMain = _.extend({banner: tpl_banner('hoard.js')}, uglifyDefaults);
-	uglifyOptsMain.beautify = true;
+	uglifyOptsMain.beautify = {
+		'beautify': true,
+		'indent_level': 4,
+	};
 	uglifyOptsMain.mangle = {except: uglifyDistExcept};
 
 	gruntCfg.uglify.main = {};
@@ -357,6 +389,17 @@ module.exports = function(grunt) {
 		atBegin: true,
 	};
 
+	gruntCfg.watch.replace = {};
+	gruntCfg.watch.replace.files = [
+		paths.base+'README.md',
+	];
+	gruntCfg.watch.replace.tasks = [
+		'readme',
+	];
+	gruntCfg.watch.replace.options = {
+		atBegin: true,
+	};
+
 	/* run all the things! ****************/
 
 	// set config
@@ -370,18 +413,24 @@ module.exports = function(grunt) {
 
 	// Default task(s).
 	grunt.registerTask('default', [
-		'replace:banner',
 		'uglify',
+		'replace:ugly',
 		'replace:readme',
 	]);
 
 	// det task
 	// used with watch
 	grunt.registerTask('dev', [
-		'replace:banner',
 		'uglify',
+		'replace:ugly',
 		'replace:readme',
 		'copy:dev',
+	]);
+
+	// det task
+	// used with watch
+	grunt.registerTask('readme', [
+		'copy:readme',
 	]);
 
 };
